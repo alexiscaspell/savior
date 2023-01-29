@@ -42,9 +42,9 @@ class InvalidTokenException(AppException):
     def __str__(self):
         return self.mensaje
 
-class UserNotFoundException(AppException):
+class InvalidPrayException(AppException):
     def __init__(self):
-        super().__init__(404, 'Usuario no encontrado')
+        super().__init__(409, 'Plegaria invalida')
 
     def __str__(self):
         return self.mensaje
