@@ -1,0 +1,28 @@
+version: "3.7"
+
+services:
+  python-fastapi-template:
+    # network_mode: bridge
+    image: python-fastapi-template
+    build: ./
+    environment:
+      # GUNICORN
+      - FASTAPI_TEMPLATE_PYTHON_PORT=5000
+
+      # LOGS
+      - NIVEL_LOGS=INFO
+      - DIRECTORIO_LOGS=logs/
+
+      # APP
+      - POOL_SIZE_DEFAULT=50
+      - MAX_OVERFLOW_DEFAULT=100
+      - DIRECTORY_FILES=files/
+      - FASTAPI_TEMPLATE_ENVIRONMENT_MODE=development
+
+    restart: always
+    volumes:
+      - ./logs:/usr/src/logs
+      - ./files:/usr/src/files
+      
+    ports:
+      - 5000:5000

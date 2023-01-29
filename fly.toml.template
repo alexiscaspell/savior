@@ -1,0 +1,17 @@
+app = "${PROYECTO}"
+
+[build]
+  image = "${DOCKER_HUB_REPO}/${PROYECTO}:${VERSION}"
+
+[[services]]
+  internal_port = 5000
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = "80"
+    force_https = true
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = "443"

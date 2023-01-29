@@ -1,0 +1,8 @@
+# DEPENDENCIAS
+
+fastapi
+gunicorn
+requests
+bson
+stringcase
+uvicorn
