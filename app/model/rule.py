@@ -35,7 +35,12 @@ class Rule(AppModel):
 
         source = self.source
 
-        params = {"source_data_output":source.get_data(),"svc":service}
+        data_output = source.get_data()
+
+        logger.info("Source data output:")
+        logger.info(data_output)
+
+        params = {"source_data_output":data_output,"svc":service}
 
         return bool(evaluate(expression,params))
         

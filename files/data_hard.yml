@@ -4,9 +4,9 @@ services:
       - name: alive_status
         expression: "$response.status_code != 200"
         source:
-          type: http_response
-          method: get
+          type: http_request
           input:
+            method: get
             url: https://utn-fitness-api.fly.dev
           output: $response
         actions:
@@ -16,9 +16,9 @@ services:
       - name: alive_status_posta
         expression: "$response.status_code != 200"
         source:
-          type: http_response
-          method: get
+          type: http_request
           input:
+            method: get
             url: https://utn-fitness-api.fly.dev/alive
           output: $response
         actions:

@@ -3,10 +3,13 @@ from enum import Enum
 import sys
 from app.model.exception import InvalidSourceException
 import requests as req
+from app.utils.logger_util import get_logger
+
+logger = get_logger(__name__)
 
 class SourceType(Enum):
     http_log = "http_log"
-    http_response = "http_response"
+    http_request = "http_request"
     ssh_log = "ssh_log"
     custom = "custom"
 
@@ -17,7 +20,7 @@ class Source(AppModel):
     id: str = None
     name: str = None
     type: SourceType
-    input: dict 
+    input: dict
     output: str
 
     def get_data(self):
@@ -26,18 +29,22 @@ class Source(AppModel):
     def to_specific_source(self):
         classname = convert_to_case(self.type.value,Case.pascal)+"Source"
 
+        full_dict = self.to_dict()
+        full_dict.update(self.input)
+
         try:
-            return class_from_str(classname).from_dict(self.to_dict())
-        except Exception as _:
+            return class_from_str(classname).from_dict(full_dict)
+        except Exception as e:
+            logger.warning(e)
             raise InvalidSourceException()
 
-class HttpResponseSource(Source):
+class HttpRequestSource(Source):
     method: str = "get"
+    url: str
+    body: object = None
 
     def get_data(self)->object:
-        url = self.input["url"]
-
-        if self.method=="get":
-            return req.get(url)
+        if self.method in ["post","put","patch"]:
+            return getattr(req, self.method)(self.url,data=self.body)
         else:
-            raise NotImplementedError("Solo se implemento metodo get")
+            return getattr(req, self.method)(self.url)
