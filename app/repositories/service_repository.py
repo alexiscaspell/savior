@@ -5,6 +5,9 @@ SERVICES = []
 
 def get_all()-> List[Service]:
     global SERVICES
+    for service in SERVICES:
+        for source in service.sources:
+            source.data=None
     return SERVICES
 
 def add(new_service:Service):

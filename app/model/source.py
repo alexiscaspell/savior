@@ -24,7 +24,7 @@ class Source(AppModel):
     type: SourceType
     input: dict
     variable: str
-    data: str = None
+    data: object = None
 
     def get_data(self):
         return self.to_specific_source().get_data()
