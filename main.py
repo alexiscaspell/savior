@@ -19,7 +19,8 @@ async def unicorn_exception_handler(request: Request, exc: AppException):
         content=exc.to_dict(),
     )
 
-savior.mock("files/data_hard.yml")
+if conf.get(Vars.MOCK,bool):
+    savior.mock("files/data_hard.yml")
 
 if __name__ == '__main__':
 

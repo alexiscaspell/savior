@@ -7,3 +7,4 @@ class Vars(Enum):
     API_BASE_PATH = "API_BASE_PATH"
     LOG_LEVEL = "LOG_LEVEL" 
     DIRECTORIO_LOGS = "DIRECTORIO_LOGS"
+    MOCK = "MOCK"

@@ -17,6 +17,7 @@ DEVELOPMENT = {
     "API_BASE_PATH": "/api",
     "LOG_LEVEL": DEBUG,
     "DIRECTORIO_LOGS": "./logs",
+    "MOCK": False,
     "ENV": ENVIRONMENT_MODE
 }
 PRODUCTION = {
@@ -26,6 +27,7 @@ PRODUCTION = {
     "API_BASE_PATH": "/api",
     "LOG_LEVEL": INFO,
     "DIRECTORIO_LOGS": "./logs",
+    "MOCK": False,
     "ENV": ENVIRONMENT_MODE
 }
 

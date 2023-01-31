@@ -18,6 +18,7 @@ services:
       - MAX_OVERFLOW_DEFAULT=100
       - DIRECTORY_FILES=files/
       - SAVIOR_ENVIRONMENT_MODE=development
+      - SAVIOR_MOCK=false
 
     restart: always
     volumes:

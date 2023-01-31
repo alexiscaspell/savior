@@ -13,8 +13,8 @@ VERSION = "/v1"
 blue_print = APIRouter(prefix=conf.get(Vars.API_BASE_PATH)+VERSION+URI,tags=["savior"])
 
 
-@blue_print.get('/helpme/service/{service_id}', response_model=PrayResponse)
-def help_me(service_id:str,source:str=None,fast:bool=False):
+@blue_print.get('/pray/service/{service_id}', response_model=PrayResponse)
+def pray(service_id:str,source:str=None,fast:bool=False):
     pray = Pray.from_dict({"service_id":service_id,"source":source,"fast":fast})
 
     response = savior.helpme(pray)
