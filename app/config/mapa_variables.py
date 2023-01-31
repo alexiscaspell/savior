@@ -5,7 +5,7 @@ import os
 def is_environment_param():
     return len(sys.argv)>1 and str(sys.argv) in ["development","production"]
 
-APP_NAME="python_fast_template"
+APP_NAME="savior"
 ENVIRONMENT_MODE = str(str(sys.argv[1]) if is_environment_param() else os.environ.get(f"{APP_NAME}".upper()+"_ENVIRONMENT_MODE", "development")).upper()
 
 NO_MOSTRAR = ["DEBUG_MODE","LOG_LEVEL","DIRECTORIO_LOGS"]

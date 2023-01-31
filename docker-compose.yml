@@ -1,13 +1,13 @@
 version: "3.7"
 
 services:
-  python-fastapi-template:
+  savior:
     # network_mode: bridge
-    image: python-fastapi-template
+    image: savior
     build: ./
     environment:
       # GUNICORN
-      - FASTAPI_TEMPLATE_PYTHON_PORT=5000
+      - SAVIOR_PYTHON_PORT=5000
 
       # LOGS
       - NIVEL_LOGS=INFO
@@ -17,7 +17,7 @@ services:
       - POOL_SIZE_DEFAULT=50
       - MAX_OVERFLOW_DEFAULT=100
       - DIRECTORY_FILES=files/
-      - FASTAPI_TEMPLATE_ENVIRONMENT_MODE=development
+      - SAVIOR_ENVIRONMENT_MODE=development
 
     restart: always
     volumes:

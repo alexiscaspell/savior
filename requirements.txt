@@ -6,3 +6,4 @@ requests
 bson
 stringcase
 uvicorn
+pyyaml

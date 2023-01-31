@@ -1,0 +1,27 @@
+services:
+  - name: "pruebita"
+    rules:
+      - name: alive_status
+        expression: "$response.status_code != 200"
+        source:
+          type: http_response
+          method: get
+          input:
+            url: https://utn-fitness-api.fly.dev
+          output: $response
+        actions:
+          - name: suggest-something
+            type: suggest
+            result: "Macho le estas pegando al /, intenta pegarle al /alive"
+      - name: alive_status_posta
+        expression: "$response.status_code != 200"
+        source:
+          type: http_response
+          method: get
+          input:
+            url: https://utn-fitness-api.fly.dev/alive
+          output: $response
+        actions:
+          - name: suggest-something
+            type: suggest
+            result: "Ahhh el servicio no esta vivoo!"

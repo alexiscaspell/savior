@@ -1,16 +1,19 @@
 from copy import deepcopy,copy
 from enum import Enum
-from stringcase import snakecase,camelcase
+from stringcase import snakecase,camelcase,pascalcase
 import datetime
 from pydantic import BaseModel
 
 class Case(Enum):
     camel = "camel"
     snake = "snake"
+    pascal = "pascal"
 
 def convert_to_case(cadena:str,case:Case):
     if case==Case.snake:
         return snakecase(cadena)
+    elif case==Case.pascal:
+        return pascalcase(cadena)
     else:
         return camelcase(cadena)
 

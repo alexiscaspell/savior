@@ -48,3 +48,17 @@ class InvalidPrayException(AppException):
 
     def __str__(self):
         return self.mensaje
+
+class InvalidSourceException(AppException):
+    def __init__(self):
+        super().__init__(409, 'Source invalida')
+
+    def __str__(self):
+        return self.mensaje
+
+class InvalidActionException(AppException):
+    def __init__(self):
+        super().__init__(409, 'Action invalida')
+
+    def __str__(self):
+        return self.mensaje

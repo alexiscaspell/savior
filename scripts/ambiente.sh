@@ -1,4 +1,4 @@
-PROYECTO=python-fastapi-template
+PROYECTO=savior
 VERSION=0.0.1
 
 DOCKER_HUB_REPO=alexiscaspell
