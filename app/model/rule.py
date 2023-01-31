@@ -22,25 +22,50 @@ class RuleType(Enum):
     log_contains = "log_contains"
     custom = "custom"
 
+class SourceRule(AppModel):
+    variables : List[str] = None
+    names : List[str] = None
+    renames: dict = {}
+
 class Rule(AppModel):
     id: str = None
     name: str
-    # type: RuleType = None
     expression: str
-    source: Source
+    source: SourceRule
     actions: List[Action]
 
+    
+    def infer_sources(self,sources:List[Source])->List[Source]:
+        if self.source.names:
+            return list(filter(lambda s:s.name in self.source.names,sources))
+
+        return list(filter(lambda s: s.variable in self.source.variables,sources))
+
+    def collect_data(self,sources: List[Source]):
+        sources = self.infer_sources(sources)
+
+        for source in sources:
+            if not source.data:
+                source.data = source.get_data()
+
+        return sources
+
     def satisfies(self,service: "Service"):
-        expression = self.expression.replace(self.source.output,"source_data_output")
+        sources = self.collect_data(service.sources)
 
-        source = self.source
+        params = {"svc":service}
 
-        data_output = source.get_data()
+        expression = self.expression
 
-        logger.info("Source data output:")
-        logger.info(data_output)
+        renames = {v: k for k, v in self.source.renames.items()}
 
-        params = {"source_data_output":data_output,"svc":service}
+        for k in renames:
+            expression = expression.replace(k,renames[k])
+
+        for i,source in enumerate(sources):
+            expression = expression.replace(source.variable,f"sources[{i}].data")
+
+        params.update({"sources":sources})
 
         return bool(evaluate(expression,params))
         
@@ -53,7 +78,7 @@ class Rule(AppModel):
 
             logger.info("Action result:")
             logger.info(action_result)
-            
+
             consequence = Consequence.from_dict({"action":action.name,"result":action_result})
 
             result_rule.consequences.append(consequence)

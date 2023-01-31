@@ -26,7 +26,7 @@ def class_from_str(classname):
 
 class Action(AppModel):
     id: str = None
-    name: str
+    name: str = None
     type: ActionType
     result: str
     input: dict=None
@@ -55,12 +55,13 @@ class HttpAction(Action):
     url: str
     body: dict = None
     method: str
+    headers: dict = {}
 
     def apply(self,service:"Service"):
         if self.method in ["post","put","patch"]:
-            response = getattr(req, self.method)(self.url,data=self.body)
+            response = getattr(req, self.method)(self.url,data=self.body,headers=self.headers)
         else:
-            response = getattr(req, self.method)(self.url)
+            response = getattr(req, self.method)(self.url,headers=self.headers)
             
         result = self.result.replace("$response","response")
 
