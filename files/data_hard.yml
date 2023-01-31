@@ -13,6 +13,12 @@ services:
           - name: suggest-something
             type: suggest
             result: "Macho le estas pegando al /, intenta pegarle al /alive"
+          - name: check-alive
+            type: http_action
+            input:
+              url: https://utn-fitness-api.fly.dev/alive
+              method: get
+            result: "f'Alive: {$response.status_code} - {$response.json()}'"
       - name: alive_status_posta
         expression: "$response.status_code != 200"
         source:

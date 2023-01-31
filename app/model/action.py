@@ -7,6 +7,10 @@ import requests as req
 
 logger = get_logger(__name__)
 
+def evaluate(expression:str,args):
+    return eval(expression,globals(),args)
+
+
 class Consequence(AppModel):
     action: str
     result: object
@@ -25,15 +29,20 @@ class Action(AppModel):
     name: str
     type: ActionType
     result: str
+    input: dict=None
 
     def apply(self,service:"Service"):
         return self.to_specific_action().apply(service)
 
     def to_specific_action(self):
-        classname = convert_to_case(self.type.value,Case.pascal)+"Action"
+        classname = convert_to_case(self.type.value,Case.pascal)
+        classname = classname if classname.endswith("Action") else classname+"Action"
+
+        full_dict = self.to_dict()
+        full_dict.update(self.input if self.input else {})
 
         try:
-            return class_from_str(classname).from_dict(self.to_dict())
+            return class_from_str(classname).from_dict(full_dict)
         except Exception as e:
             logger.warning(e)
             raise InvalidActionException()
@@ -49,7 +58,11 @@ class HttpAction(Action):
 
     def apply(self,service:"Service"):
         if self.method in ["post","put","patch"]:
-            return getattr(req, self.method)(self.url,data=self.body)
+            response = getattr(req, self.method)(self.url,data=self.body)
         else:
-            getattr(req, self.method)(self.url)
+            response = getattr(req, self.method)(self.url)
+            
+        result = self.result.replace("$response","response")
+
+        return evaluate(result,{"response":response})
 

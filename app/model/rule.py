@@ -50,6 +50,10 @@ class Rule(AppModel):
 
         for action in self.actions:
             action_result=action.apply(service)
+
+            logger.info("Action result:")
+            logger.info(action_result)
+            
             consequence = Consequence.from_dict({"action":action.name,"result":action_result})
 
             result_rule.consequences.append(consequence)
