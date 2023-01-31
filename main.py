@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.model.exception import AppException
 from app.utils.blueprint_util import registrar_blue_prints
 import uvicorn
+from app.services import savior
 
 app = FastAPI()
 
@@ -17,6 +18,8 @@ async def unicorn_exception_handler(request: Request, exc: AppException):
         status_code=exc.codigo,
         content=exc.to_dict(),
     )
+
+savior.mock("files/data_hard.yml")
 
 if __name__ == '__main__':
 

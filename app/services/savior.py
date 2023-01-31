@@ -17,6 +17,8 @@ def mock(file_path):
         services_dict = yaml.safe_load(f)
 
         logger.info(services_dict)
+
+    service_repo.SERVICES = []
         
     for service_dict in services_dict["services"]:
         service=Service.from_dict(service_dict)
@@ -33,7 +35,7 @@ def get_service_by_id(id:str)-> Service:
     return service_repo.get_by_id(id)
 
 def get_service_by_name(name:str)-> Service:
-    return service_repo.get_by_name(id)
+    return service_repo.get_by_name(name)
 
 def infer_service(pray:Pray) -> Service:
     if pray.service_id:
