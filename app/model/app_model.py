@@ -3,6 +3,9 @@ from enum import Enum
 from stringcase import snakecase,camelcase,pascalcase
 import datetime
 from pydantic import BaseModel
+from app.utils.logger_util import get_logger
+
+logger = get_logger(__name__)
 
 class Case(Enum):
     camel = "camel"
@@ -119,7 +122,8 @@ class AppModel(BaseModel):
 
         try:
             return cls(**new_dict)
-        except Exception as _:
+        except Exception as e:
+            logger.warning(e)
             return cls(new_dict)
 
     def __repr__(self):

@@ -6,6 +6,7 @@ import requests as req
 from app.utils.logger_util import get_logger
 import subprocess
 from app.utils.file_util import is_file
+from app.model.context import Context
 
 logger = get_logger(__name__)
 
@@ -25,6 +26,8 @@ class Source(AppModel):
     input: dict
     variable: str
     data: object = None
+    output: str = None
+    context: Context = None
 
     def get_data(self):
         return self.to_specific_source().get_data()
@@ -32,11 +35,15 @@ class Source(AppModel):
     def to_specific_source(self):
         classname = convert_to_case(self.type.value,Case.pascal)+"Source"
 
+        context = self.context
+        self.context = None
         full_dict = self.to_dict()
         full_dict.update(self.input)
 
         try:
-            return class_from_str(classname).from_dict(full_dict)
+            instance=class_from_str(classname).from_dict(full_dict)
+            instance.context=context
+            return instance
         except Exception as e:
             logger.warning(e)
             raise InvalidSourceException()
@@ -48,12 +55,23 @@ class HttpRequestSource(Source):
     headers: dict = {}
 
     def get_data(self)->object:
-        if self.method in ["post","put","patch"]:
-            return getattr(req, self.method)(self.url,data=self.body,headers=self.headers)
-        else:
-            return getattr(req, self.method)(self.url,headers=self.headers)
+        context = self.context
 
-class HttpLog(HttpRequestSource):
+        args = context.source_vars()
+
+        url = context.get_curated_string(self.url)
+        url = context.eval(url,args)
+
+        if self.method in ["post","put","patch"]:
+            response = getattr(req, self.method)(url,data=self.body,headers=self.headers)
+        else:
+            response = getattr(req, self.method)(url,headers=self.headers)
+        
+        args.update({"response":response})
+
+        return response if not self.output else context.eval(self.output,args)
+
+class HttpLogSource(HttpRequestSource):
     def get_data(self) -> str:
         return super().get_data().text
 
@@ -62,7 +80,7 @@ class SshCredentials(AppModel):
     password : str = None
     key_file : str = None
 
-class HttpLog(HttpRequestSource):
+class SshLogSource(HttpRequestSource):
     filepath: str
     creds: SshCredentials
     ip: str

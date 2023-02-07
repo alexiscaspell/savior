@@ -5,6 +5,7 @@ services:
     # network_mode: bridge
     image: savior
     build: ./
+    network_mode: host
     environment:
       # GUNICORN
       - SAVIOR_PYTHON_PORT=5000
@@ -18,12 +19,12 @@ services:
       - MAX_OVERFLOW_DEFAULT=100
       - DIRECTORY_FILES=files/
       - SAVIOR_ENVIRONMENT_MODE=development
-      - SAVIOR_MOCK=false
+      - SAVIOR_MOCK=true
 
     restart: always
     volumes:
       - ./logs:/usr/src/logs
       - ./files:/usr/src/files
       
-    ports:
-      - 5000:5000
+    # ports:
+    #   - 5000:5000

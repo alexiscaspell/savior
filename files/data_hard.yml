@@ -1,42 +1,46 @@
 services:
-  - name: "pruebita"
+  - name: audit-3ds-desa
     sources:
-      - type: http_request
-        variable: $response
+      - name: last_build_jenkins
+        type: http_request
+        variable: $last_job
+        output: "{'id': response.json()['id'], 'status':response.json()['result']}"
         input:
           method: get
-          url: https://utn-fitness-api.fly.dev
-      - type: http_request
-        name: input_alive
-        variable: $response_alive
-        input: 
+          url: http://127.0.0.1:10101/job/Decidir/job/desa/job/ms-audit-3ds/lastBuild/api/json
+          headers:
+            Authorization: "Basic YXRhYmVybmE6MTEzMTZiZjQ5ZWQxMTc4MjdmZTI5MjI1OWFmNmFjNmFiZA=="
+      - name: latest_build_log_jenkins
+        type: http_log
+        variable: $job_log
+        input:
           method: get
-          url: https://utn-fitness-api.fly.dev/alive
+          url: "http://127.0.0.1:10101/job/Decidir/job/desa/job/ms-audit-3ds/{$last_job['id']}/consoleText"
+          headers:
+            Authorization: "Basic YXRhYmVybmE6MTEzMTZiZjQ5ZWQxMTc4MjdmZTI5MjI1OWFmNmFjNmFiZA=="
 
     rules:
-      - name: alive_status
-        source:
-          variables:
-            - $response
-        expression: "$response.status_code != 200"
-        actions:
-          - name: suggest-something
-            type: suggest
-            result: "Macho le estas pegando al /, intenta pegarle al /alive"
-          - name: check-alive
-            type: http_action
-            input:
-              url: https://utn-fitness-api.fly.dev/alive
-              method: get
-            result: "f'Alive: {$response.status_code} - {$response.json()}'"
-      - name: alive_status_posta
+      - name: failure_build_jenkins
         source:
           names:
-            - input_alive
+            - last_build_jenkins
           renames:
-            response_alive: response
-        expression: "$response.status_code != 200"
+            last_job: job
+        expression: "$job['status'] == 'FAILURE'"
         actions:
           - name: suggest-something
             type: suggest
-            result: "Ahhh el servicio no esta vivoo!"
+            result: "El ultimo build en jenkins rompio, quizas deberias revisar eso"
+      - name: error_log_jenkins
+        source:
+          names:
+            - latest_build_log_jenkins
+          renames:
+            job_log: log
+        preconditions:
+          - failure_build_jenkins
+        expression: "any(error in $log for error in ['ENV_STATUS','SONAR_STATUS','BUILD_STATUS','BUILD_IMAGE_STATUS','DEPLOY_STATUS'])"
+        actions:
+          - name: suggest-something
+            type: suggest
+            result: "El ultimo job de jenkins te rompio en el step de {list(filter(lambda e:e in $log,['ENV_STATUS','SONAR_STATUS','BUILD_STATUS','BUILD_IMAGE_STATUS','DEPLOY_STATUS']))[0].replace('_STATUS','')}"

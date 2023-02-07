@@ -4,18 +4,9 @@ from app.model.source import Source
 from typing import List
 from enum import Enum
 from app.utils.logger_util import get_logger
+from app.model.context import Context
 
 logger = get_logger(__name__)
-
-def evaluate(expression:str,args):
-    logger.info("Evaluando expresion: ")
-    logger.info(expression)
-
-    eval_res = eval(expression,globals(),args)
-
-    logger.info(f"Resultado: {eval_res}")
-
-    return eval_res
 
 class RuleType(Enum):
     http_status = "http_status"
@@ -33,48 +24,59 @@ class Rule(AppModel):
     expression: str
     source: SourceRule
     actions: List[Action]
+    preconditions: List[str] = []
+    result:bool = None
+    context: Context = None
 
-    
-    def infer_sources(self,sources:List[Source])->List[Source]:
-        if self.source.names:
-            return list(filter(lambda s:s.name in self.source.names,sources))
+    def to_dict(self):
+        context = self.context
+        self.context = None
+        my_dict = super().to_dict()
+        self.context=context
+        return my_dict
 
-        return list(filter(lambda s: s.variable in self.source.variables,sources))
-
-    def collect_data(self,sources: List[Source]):
-        sources = self.infer_sources(sources)
+    def collect_data(self):
+        sources = self.context.rule_sources()
 
         for source in sources:
             if not source.data:
+                source.context = self.context
                 source.data = source.get_data()
 
         return sources
 
-    def satisfies(self,service: "Service"):
-        sources = self.collect_data(service.sources)
+    def satisfies(self):
+        if self.result:
+            return self.result
 
-        params = {"svc":service}
+        context = self.context
 
-        expression = self.expression
-
-        renames = {v: k for k, v in self.source.renames.items()}
-
-        for k in renames:
-            expression = expression.replace(k,renames[k])
-
-        for i,source in enumerate(sources):
-            expression = expression.replace(source.variable,f"sources[{i}].data")
-
-        params.update({"sources":sources})
-
-        return bool(evaluate(expression,params))
+        context.current_rule = self
         
+        self.collect_data()
 
-    def apply_actions(self,service:"Service"):
+        params = context.current_rule_vars()
+
+        expression = self.get_curated_string(self.expression)
+
+        self.result = bool(context.eval(expression,params))
+
+        return self.result
+
+    def get_curated_string(self,some_str:str):
+        return self.context.get_curated_string(some_str,renames=self.source.renames)
+        
+    def apply_actions(self):
+        context = self.context
+
         result_rule = ResultRule.from_dict({"name":self.name,"consequences":[]})
 
         for action in self.actions:
-            action_result=action.apply(service)
+            context.current_action = action
+
+            action.context = context
+
+            action_result = action.apply()
 
             logger.info("Action result:")
             logger.info(action_result)
@@ -82,6 +84,7 @@ class Rule(AppModel):
             consequence = Consequence.from_dict({"action":action.name,"result":action_result})
 
             result_rule.consequences.append(consequence)
+
         return result_rule
 
 class ResultRule(AppModel):

@@ -130,3 +130,6 @@ dmypy.json
 
 # Deploy
 fly.toml
+
+# Vscode
+.vscode/

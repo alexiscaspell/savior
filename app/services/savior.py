@@ -8,6 +8,7 @@ from app.model.service import Service
 from app.repositories import service_repository as service_repo
 import yaml
 from app.utils.logger_util import get_logger
+from app.model.context import Context
 
 logger = get_logger(__name__)
 
@@ -49,14 +50,20 @@ def infer_service(pray:Pray) -> Service:
 def helpme(pray:Pray):
     service = infer_service(pray)
 
+    context = Context.from_dict({"service":service})
+
     response = PrayResponse.from_dict({"service":service.name,"rules":[]})
 
-    for rule in service.rules:
+    rules = service.ordered_rules()
+
+    for rule in rules:
         if pray.source and pray.source != rule.source.name:
             continue
+
+        rule.context = context
         
-        if rule.satisfies(service):
-            result = rule.apply_actions(service)
+        if rule.satisfies():
+            result = rule.apply_actions()
 
             response.rules.append(result)
 
