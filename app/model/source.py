@@ -56,6 +56,7 @@ class HttpRequestSource(Source):
     body: object = None
     headers: dict = {}
     retry:int=None
+    retry_sleep:int=1
 
     def get_data(self)->object:
         context = self.context
@@ -66,7 +67,7 @@ class HttpRequestSource(Source):
         url = context.eval(url,args)
 
         session = req.Session()
-        adapter = HTTPAdapter(max_retries=Retry(total=self.retry, backoff_factor=1, allowed_methods=None, status_forcelist=[429, 500, 502, 503, 504]))
+        adapter = HTTPAdapter(max_retries=Retry(total=self.retry, backoff_factor=self.retry_sleep, allowed_methods=None, status_forcelist=[429, 500, 502, 503, 504]))
         session.mount("http://", adapter)
         session.mount("https://", adapter)
 

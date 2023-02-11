@@ -28,10 +28,10 @@ class Context(AppModel):
         return vars
 
     def cast_object(self,o:object):
-        if isinstance(o,Dict):
+        if isinstance(o,Dict) and not isinstance(o,DotMap):
             return DotMap(o)
         if isinstance(o,List) and len(o)>0:
-            if isinstance(o[0],Dict):
+            if isinstance(o[0],Dict) and not isinstance(o[0],DotMap):
                 return [DotMap(so) for so in o]
         
         return o
