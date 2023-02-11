@@ -13,20 +13,28 @@ def evaluate(expression:str,args:Dict={}):
         return eval(expression,global_args,local_args)
     except NameError as ne:
         module=re.findall(r"'([^']*)'", str(ne))[0]
-        args.update({module:importlib.import_module(module)})
-        return evaluate(expression,args)
-    except Exception as e:
-        if "'" in expression:
-            returned=eval(f'f"{expression}"',global_args,local_args)
-        else:
-            returned=eval(f"f'{expression}'",global_args,local_args)
+        try:
+            args.update({module:importlib.import_module(module)})
+            return evaluate(expression,args)
+        except Exception as _:
+            return _fixed_evaluate(expression,global_args,local_args)
+    except Exception as _:
+        return _fixed_evaluate(expression,global_args,local_args)
+        
+def _fixed_evaluate(expression:str,global_args:Dict,local_args:Dict):
+    returned = None
+    
+    if "'" in expression:
+        returned=eval(f'f"{expression}"',global_args,local_args)
+    else:
+        returned=eval(f"f'{expression}'",global_args,local_args)
 
         is_str = returned.startswith("f'") and returned.endswith('"')
         is_str = is_str or  (returned.startswith('f"') and returned.endswith("'"))
 
         if is_str:
             return eval(returned)
-        return returned
+    return returned
 
 def safe_evaluate(expression:str,some_args:Dict={}):
     safe_expression = expression.replace("$","")

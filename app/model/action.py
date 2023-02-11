@@ -55,7 +55,7 @@ class SuggestAction(Action):
     def apply(self):
         context = self.context
         result = context.current_rule.get_curated_string(self.result)
-        return context.eval(result,context.current_rule_vars())
+        return context.eval(result,context.context_vars())
 
 class HttpAction(Action):
     url: str

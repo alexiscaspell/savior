@@ -133,3 +133,8 @@ fly.toml
 
 # Vscode
 .vscode/
+.metals/
+
+# Others
+/files/data_hard.json
+/files/data_hard.yml

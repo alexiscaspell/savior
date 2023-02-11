@@ -7,3 +7,4 @@ bson
 stringcase
 uvicorn
 pyyaml
+dotmap

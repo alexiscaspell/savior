@@ -2,12 +2,14 @@ from app.model.app_model import AppModel
 from app.model.rule import Rule
 from typing import List
 from app.model.source import Source
+from typing import Dict
 
 class Service(AppModel):
     id: str = None
     name: str
     rules: List[Rule]
     sources: List[Source]
+    vars: Dict = {}
 
     def ordered_rules(self)->List[Rule]:
         rules_wo_preconditions = list(filter(lambda r:len(r.preconditions)==0,self.rules))

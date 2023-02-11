@@ -1,6 +1,7 @@
 from app.model.app_model import AppModel
 from typing import List,Dict
 from app.utils.introspection_util import evaluate
+from dotmap import DotMap
 
 class Context(AppModel):
     service: object
@@ -13,21 +14,27 @@ class Context(AppModel):
 
         return list(filter(lambda s: s.variable in self.current_rule.source.variables,self.service.sources))
 
-    def source_vars(self):
+    def context_vars(self)->Dict:
         vars={}
 
         for i,s in enumerate(self.service.sources):
-            if s.data:
+            if s.data is not None:
+                s.data = self.cast_object(s.data)
                 vars.update({f"source{i}":s})
 
-        return vars
-
-    def current_rule_vars(self):
-        vars=self.source_vars()
-
+        self.service.vars = DotMap(self.service.vars)
         vars.update({"svc":self.service})
 
         return vars
+
+    def cast_object(self,o:object):
+        if isinstance(o,Dict):
+            return DotMap(o)
+        if isinstance(o,List) and len(o)>0:
+            if isinstance(o[0],Dict):
+                return [DotMap(so) for so in o]
+        
+        return o
 
     
     def get_curated_string(self,some_str:str,sources:List["Source"]=None,renames:Dict=None):
@@ -44,7 +51,12 @@ class Context(AppModel):
         return return_str
 
     def eval(self,some_str:str,params:Dict):
-        return evaluate(some_str,params)
+        vars={}
+
+        for k,v in params.items():
+            vars[k] = self.cast_object(v)
+
+        return evaluate(some_str,vars)
 
 
         

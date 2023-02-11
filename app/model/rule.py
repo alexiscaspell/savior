@@ -45,9 +45,18 @@ class Rule(AppModel):
 
         return sources
 
+    def satisfy_preconditions(self):
+        return all(list(filter(lambda r:r.name==p,self.context.service.rules))[0].result for p in self.preconditions)
+
     def satisfies(self):
         if self.result:
             return self.result
+
+        if not self.satisfy_preconditions():
+            self.result = False
+            return self.result
+
+        logger.info(f"Ejecutando rule {self.name} ...")
 
         context = self.context
 
@@ -55,11 +64,13 @@ class Rule(AppModel):
         
         self.collect_data()
 
-        params = context.current_rule_vars()
+        params = context.context_vars()
 
         expression = self.get_curated_string(self.expression)
 
         self.result = bool(context.eval(expression,params))
+
+        logger.info(f"Resultado: {self.result}")
 
         return self.result
 

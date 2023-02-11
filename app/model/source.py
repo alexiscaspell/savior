@@ -7,6 +7,8 @@ from app.utils.logger_util import get_logger
 import subprocess
 from app.utils.file_util import is_file
 from app.model.context import Context
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 logger = get_logger(__name__)
 
@@ -53,14 +55,20 @@ class HttpRequestSource(Source):
     url: str
     body: object = None
     headers: dict = {}
+    retry:int=None
 
     def get_data(self)->object:
         context = self.context
 
-        args = context.source_vars()
+        args = context.context_vars()
 
         url = context.get_curated_string(self.url)
         url = context.eval(url,args)
+
+        session = req.Session()
+        adapter = HTTPAdapter(max_retries=Retry(total=self.retry, backoff_factor=1, allowed_methods=None, status_forcelist=[429, 500, 502, 503, 504]))
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
 
         if self.method in ["post","put","patch"]:
             response = getattr(req, self.method)(url,data=self.body,headers=self.headers)
