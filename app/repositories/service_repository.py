@@ -20,4 +20,4 @@ def get_by_id(id:str)-> Service:
     return list(filter(lambda s:s.id==id,get_all()))[0]
 
 def get_by_name(name:str)-> Service:
-    return list(filter(lambda s:s.name==name,get_all()))[0]
+    return list(filter(lambda s: name in s.name,get_all()))[0]
