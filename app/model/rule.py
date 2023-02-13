@@ -14,12 +14,12 @@ class RuleType(Enum):
     custom = "custom"
 
 class SourceRule(AppModel):
-    variables : List[str] = None
-    names : List[str] = None
+    variables : List[str] = []
+    names : List[str] = []
     renames: dict = {}
 
 class Rule(AppModel):
-    id: str = None
+    id: int = None
     name: str
     expression: str
     source: SourceRule

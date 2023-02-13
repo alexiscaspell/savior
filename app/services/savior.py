@@ -29,6 +29,9 @@ def mock(file_path):
         service_repo.add(service)
 
 
+def add_service(service:Service)->int:
+    return service_repo.add(service)
+
 def get_all_services()-> List[Service]:
     return service_repo.get_all()
 

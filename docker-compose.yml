@@ -20,6 +20,9 @@ services:
       - DIRECTORY_FILES=files/
       - SAVIOR_ENVIRONMENT_MODE=development
       - SAVIOR_MOCK=true
+      - SAVIOR_DATABASE_NAME=savior_db
+      - SAVIOR_ENTITY_DIR=app/repositories/entity/
+      - SAVIOR_AUTOCREATE_DB=true
 
     restart: always
     volumes:

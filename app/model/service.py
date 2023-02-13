@@ -5,7 +5,7 @@ from app.model.source import Source
 from typing import Dict
 
 class Service(AppModel):
-    id: str = None
+    id: int = None
     name: str
     rules: List[Rule]
     sources: List[Source]

@@ -8,3 +8,4 @@ stringcase
 uvicorn
 pyyaml
 dotmap
+sqlalchemy

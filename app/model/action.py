@@ -22,7 +22,7 @@ def class_from_str(classname):
     
 
 class Action(AppModel):
-    id: str = None
+    id: int = None
     name: str = None
     type: ActionType
     result: str

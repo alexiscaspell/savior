@@ -22,10 +22,10 @@ def class_from_str(classname):
     return getattr(sys.modules[__name__], classname)
 
 class Source(AppModel):
-    id: str = None
+    id: int = None
     name: str = None
     type: SourceType
-    input: dict
+    input: dict = {}
     variable: str
     data: object = None
     output: str = None

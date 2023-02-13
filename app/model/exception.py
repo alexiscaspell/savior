@@ -62,3 +62,10 @@ class InvalidActionException(AppException):
 
     def __str__(self):
         return self.mensaje
+
+class ServiceNotFoundException(AppException):
+    def __init__(self):
+        super().__init__(409, 'Service no existente')
+
+    def __str__(self):
+        return self.mensaje

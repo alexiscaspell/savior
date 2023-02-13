@@ -50,7 +50,7 @@ def list_files(path:str)->List[str]:
     '''Lista tdos los archivos o directorios recursivamente dentro de dir'''
     path_a_listar = path if is_file(path) else path_join(path, "/**/*")
 
-    return glob.iglob(path_a_listar, recursive=True)
+    return list(glob.iglob(path_a_listar, recursive=True))
 
 def list_top_level_files(path:str)->List[str]:
     '''Lista tdos los archivos o directorios dentro del 1er nivel de dir'''

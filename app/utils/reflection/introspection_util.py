@@ -23,7 +23,7 @@ def evaluate(expression:str,args:Dict={}):
         
 def _fixed_evaluate(expression:str,global_args:Dict,local_args:Dict):
     returned = None
-    
+
     if "'" in expression:
         returned=eval(f'f"{expression}"',global_args,local_args)
     else:
@@ -49,3 +49,9 @@ def safe_evaluate(expression:str,some_args:Dict={}):
             safe_args.update({k.replace("$",""):item})
 
     return evaluate(safe_expression,safe_args)
+
+def get_class_name(some_class)->str:
+    return some_class.__name__
+
+def get_class_fields(some_class)->str:
+    return list(some_class.__fields__)

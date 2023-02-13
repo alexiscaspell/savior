@@ -18,6 +18,9 @@ DEVELOPMENT = {
     "LOG_LEVEL": DEBUG,
     "DIRECTORIO_LOGS": "./logs",
     "MOCK": False,
+    "DATABASE_NAME": "savior_db",
+    "ENTITY_DIR": "app/repositories/entity/",
+    "AUTOCREATE_DB": True,
     "ENV": ENVIRONMENT_MODE
 }
 PRODUCTION = {
@@ -28,6 +31,9 @@ PRODUCTION = {
     "LOG_LEVEL": INFO,
     "DIRECTORIO_LOGS": "./logs",
     "MOCK": False,
+    "DATABASE_NAME": "savior_db",
+    "ENTITY_DIR": "app/repositories/entity/",
+    "AUTOCREATE_DB": True,
     "ENV": ENVIRONMENT_MODE
 }
 

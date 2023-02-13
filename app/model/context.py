@@ -1,6 +1,6 @@
 from app.model.app_model import AppModel
 from typing import List,Dict
-from app.utils.introspection_util import evaluate
+from app.utils.reflection.introspection_util import evaluate
 from dotmap import DotMap
 
 class Context(AppModel):

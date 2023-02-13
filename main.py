@@ -7,10 +7,13 @@ from app.model.exception import AppException
 from app.utils.blueprint_util import registrar_blue_prints
 import uvicorn
 from app.services import savior
+import app.utils.sqlite.sqlite_util as sql
 
 app = FastAPI()
 
 registrar_blue_prints(app, 'app/routes')
+
+sql.init(conf.get(Vars.DATABASE_NAME))
 
 @app.exception_handler(AppException)
 async def unicorn_exception_handler(request: Request, exc: AppException):
