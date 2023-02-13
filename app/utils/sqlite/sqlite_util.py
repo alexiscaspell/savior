@@ -35,7 +35,7 @@ def _create_engine(db_name:str=None)->db.Engine:
     global _ENGINE
 
     if not _ENGINE:
-        _ENGINE = db.create_engine(f'sqlite:///{db_name}.db')
+        _ENGINE = db.create_engine(f'sqlite:///{db_name}.db',pool_size=20, max_overflow=0)
 
     return _ENGINE
 
@@ -54,6 +54,8 @@ def select_by_ids(ids:list,class_entity:ModelEntity) -> List[AppModel]:
     q = q.filter(getattr(class_entity,get_metadata(class_entity).id_column).in_(ids))
 
     result = q.all()
+
+    session.close()
 
     return [e.to_model() for e in result]
 
@@ -74,13 +76,7 @@ def select_all(class_entity:ModelEntity) -> List[AppModel]:
     return [e.to_model() for e in result]
 
 def select_one_by_filter(filter:dict,class_entity:ModelEntity) -> AppModel:
-    session = create_session()
-
-    result = session.query(class_entity).get(filter)
-
-    session.close()
-
-    return result.to_model()
+    return select_by_filter(filter,class_entity)[0]
 
 def select_by_filter(filter:dict,class_entity:ModelEntity) -> List[AppModel]:
     session = create_session()
@@ -116,8 +112,12 @@ def insert(some_obj:AppModel,class_entity: ModelEntity,return_id=True):
 
     session.refresh(entity)
 
-    if return_id:
-        return _get_id(entity)
+    new_id = _get_id(entity) if return_id else None
+
+    session.close()
+
+    return new_id
+
 
 
 def delete(id,class_entity:ModelEntity):

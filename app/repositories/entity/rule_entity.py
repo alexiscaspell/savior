@@ -5,7 +5,7 @@ import json
 from app.repositories.entity.source_entity import SourceEntity
 
 def list_from_str(some_str,delimiter=",")->list:
-    if some_str is None:
+    if some_str is None or some_str=="":
         return []
     return some_str.split(delimiter)
 
@@ -43,6 +43,7 @@ class RuleEntity(ModelEntity):
                             expression=r.expression,
                             preconditions=",".join(r.preconditions),
                             source_variables=",".join(sr.variables),
+                            source_names=",".join(sr.names),
                             source_renames=json.dumps(sr.renames)
                         )
 

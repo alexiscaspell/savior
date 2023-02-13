@@ -16,13 +16,13 @@ VERSION = "/v1"
 blue_print = APIRouter(prefix=conf.get(Vars.API_BASE_PATH)+VERSION+URI,tags=["services"])
 
 
-@blue_print.get('/', response_model=List[Service])
+@blue_print.get('', response_model=List[Service])
 def get_services(name:str=None):
     if name:
         return get_valid_rest_object([savior.get_service_by_name(name)])
     return get_valid_rest_object(savior.get_all_services())
 
-@blue_print.post('/', response_model=int)
+@blue_print.post('', response_model=int)
 def add_service(svc:Service):
     id = savior.add_service(svc)
     return id

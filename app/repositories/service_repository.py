@@ -39,10 +39,10 @@ def _get_complete_service(incomplete_svc:Service)->Service:
 
 
 def get_by_id(id:str)-> Service:
-    service = sql.select_by_id(ServiceEntity)
+    service = sql.select_by_id(id,ServiceEntity)
     return _get_complete_service(service)
 
 def get_by_name(name:str)-> Service:
-    service = sql.select_one_by_filter({"name":name},ServiceEntity)
+    service = sql.select_one_by_filter({"name":f"%{name}%"},ServiceEntity)
 
     return _get_complete_service(service)
