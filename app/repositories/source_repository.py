@@ -11,3 +11,8 @@ def add(new_source:Source)->int:
 
 def get_by_ids(ids:List[int])->List[Source]:
     return sql.select_by_ids(ids,SourceEntity)
+
+def get_by_name(name:str)-> Source:
+    source = sql.select_one_by_filter({"name":name},SourceEntity)
+
+    return source

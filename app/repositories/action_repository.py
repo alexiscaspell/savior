@@ -11,3 +11,8 @@ def add(new_action:Action)->int:
 
 def get_by_ids(ids:List[int])->List[Action]:
     return sql.select_by_ids(ids,ActionEntity)
+
+def get_by_name(name:str)-> Action:
+    action = sql.select_one_by_filter({"name":name},ActionEntity)
+
+    return action

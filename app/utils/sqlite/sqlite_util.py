@@ -76,7 +76,8 @@ def select_all(class_entity:ModelEntity) -> List[AppModel]:
     return [e.to_model() for e in result]
 
 def select_one_by_filter(filter:dict,class_entity:ModelEntity) -> AppModel:
-    return select_by_filter(filter,class_entity)[0]
+    result = select_by_filter(filter,class_entity)
+    return result[0] if len(result)>0 else None
 
 def select_by_filter(filter:dict,class_entity:ModelEntity) -> List[AppModel]:
     session = create_session()

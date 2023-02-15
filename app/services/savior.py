@@ -29,14 +29,17 @@ def mock(file_path):
         service_repo.add(service)
 
 
-def add_service(service:Service)->int:
-    return service_repo.add(service)
+def add_service(service:Service,infer_ids:bool=False)->int:
+    return service_repo.add(service,infer_ids)
 
 def get_all_services()-> List[Service]:
     return service_repo.get_all()
 
 def get_service_by_id(id:str)-> Service:
     return service_repo.get_by_id(id)
+
+def get_services_by_name(name:str)-> List[Service]:
+    return service_repo.get_all_by_name_like(name)
 
 def get_service_by_name(name:str)-> Service:
     return service_repo.get_by_name(name)
@@ -64,13 +67,17 @@ def helpme(pray:Pray):
             continue
 
         rule.context = context
-        
-        if rule.satisfies():
-            result = rule.apply_actions()
 
-            response.rules.append(result)
+        try:
+            if rule.satisfies():
+                result = rule.apply_actions()
 
-            if pray.fast:
-                return response
+                response.rules.append(result)
 
+                if pray.fast:
+                    return response
+        except Exception as re:
+            logger.error(f"FALLO EJECUTANDO REGLA {rule.name}")
+            logger.error(re)
+            
     return response
