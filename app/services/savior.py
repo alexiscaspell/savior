@@ -57,7 +57,12 @@ def infer_service(pray:Pray) -> Service:
 def helpme(pray:Pray):
     service = infer_service(pray)
 
-    context = Context.from_dict({"service":service})
+    svc_dict = service.to_dict()
+    svc_dict.update(pray.params)
+    service = Service.from_dict(svc_dict)
+
+    context_dict = {"service":service}
+    context = Context.from_dict(context_dict)
 
     response = PrayResponse.from_dict({"service":service.name,"rules":[]})
 
