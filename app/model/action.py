@@ -51,6 +51,22 @@ class Action(AppModel):
             logger.warning(e)
             raise InvalidActionException()
     
+class SetVariableAction(Action):
+    expression: str
+    variable: str
+    
+    def apply(self):
+        context = self.context
+        expression = context.current_rule.get_curated_string(self.expression)
+
+        variable = context.current_rule.get_curated_string(self.variable)
+        variable = context.eval(variable,context.context_vars())
+
+        result = context.eval(expression,context.context_vars())
+        context.service.vars.update({variable:result})
+
+        return None
+
 class SuggestAction(Action):
     def apply(self):
         context = self.context

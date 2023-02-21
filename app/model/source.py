@@ -89,30 +89,30 @@ class SshCredentials(AppModel):
     password : str = None
     key_file : str = None
 
-class SshLogSource(HttpRequestSource):
+class SshLogSource(Source):
     filepath: str
     creds: SshCredentials
     ip: str
     port: int = 22
 
     def get_data(self) -> str:
-        bash_command=""
+        ssh_command=""
 
-        if self.password:
-            if is_file(self.password):
-                bash_command = f"sshpass -f '{self.password}' "
+        if self.creds.password:
+            if "/" in self.creds.password:
+                ssh_command = f"sshpass -f '{self.creds.password}' "
             else:
-                bash_command = f"sshpass -p '{self.password}' "
+                ssh_command = f"sshpass -p '{self.creds.password}' "
 
-        bash_command = bash_command + f"ssh {self.creds.user}@self.ip -p {self.port} "
-        ssh_command = f"'cat {self.filepath}'"
+        ssh_command = ssh_command + f"ssh -o StrictHostKeyChecking=no {self.creds.user}@{self.ip} -p {self.port} "
+        bash_command = f"'cat {self.filepath}'"
 
         if self.creds.key_file:
-            bash_command = bash_command+f"-i {self.creds.key_file} "
+            ssh_command = ssh_command+f"-i {self.creds.key_file} "
 
-        bash_command = bash_command + ssh_command
+        ssh_command = ssh_command + bash_command
 
-        process = subprocess.Popen(bash_command.split(), stdout=subprocess.PIPE)
+        process = subprocess.Popen(ssh_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
 
         output, error = process.communicate()
 

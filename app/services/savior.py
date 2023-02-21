@@ -1,7 +1,7 @@
 from typing import List
 
 from app.model.action import Consequence
-from app.model.exception import InvalidPrayException
+from app.model.exception import InvalidPrayException,FailedPrayException
 from app.model.pray import Pray, PrayResponse
 from app.model.rule import ResultRule, Rule
 from app.model.service import Service
@@ -9,6 +9,7 @@ from app.repositories import service_repository as service_repo
 import yaml
 from app.utils.logger_util import get_logger
 from app.model.context import Context
+import app.services.source_service as source_svc
 
 logger = get_logger(__name__)
 
@@ -62,6 +63,10 @@ def helpme(pray:Pray):
 
     rules = service.ordered_rules()
 
+    logger.info(f"Evaluando servicio {service.name}({service.id}) ...")
+
+    rule_failed_counter = 0
+
     for rule in rules:
         if pray.source and pray.source != rule.source.name:
             continue
@@ -79,5 +84,14 @@ def helpme(pray:Pray):
         except Exception as re:
             logger.error(f"FALLO EJECUTANDO REGLA {rule.name}")
             logger.error(re)
+            rule_failed_counter+=1
+
+    if rule_failed_counter==len(rules):
+        raise FailedPrayException(service.name)
             
     return response
+
+def eval_service_source(service_id:int,source_id:int):
+    service = get_service_by_id(service_id)
+
+    return source_svc.eval(source_id,{"service",service})

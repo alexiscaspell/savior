@@ -60,9 +60,7 @@ def select_by_ids(ids:list,class_entity:ModelEntity) -> List[AppModel]:
     return [e.to_model() for e in result]
 
 def select_by_id(id,class_entity:ModelEntity) -> AppModel:
-    result = select_by_filter({get_metadata(class_entity).id_column:id},class_entity)
-
-    return result[0] if len(result)>0 else None
+    return select_one_by_filter({get_metadata(class_entity).id_column:id},class_entity)
 
 def select_all(class_entity:ModelEntity) -> List[AppModel]:
     session = create_session()

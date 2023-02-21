@@ -92,9 +92,9 @@ class Rule(AppModel):
             logger.info("Action result:")
             logger.info(action_result)
 
-            consequence = Consequence.from_dict({"action":action.name,"result":action_result})
-
-            result_rule.consequences.append(consequence)
+            if action_result is not None:
+                consequence = Consequence.from_dict({"action":action.name,"result":action_result})
+                result_rule.consequences.append(consequence)
 
         return result_rule
 

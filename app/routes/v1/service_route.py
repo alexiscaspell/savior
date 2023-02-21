@@ -26,7 +26,12 @@ def add_service(svc:Service,infer_ids:bool=False):
     id = savior.add_service(svc,infer_ids)
     return id
 
+@blue_print.post('{service_id}/sources/{source_id}/eval')
+def eval_service_source(service_id:int,source_id:int):
+    result = savior.eval_service_source(service_id,source_id)
+    return get_valid_rest_object(result)
+
 @blue_print.post('/yaml', response_model=int)
-async def add_service(svc_yaml: str = Body(...)):
+def add_service(svc_yaml: str = Body(..., media_type='text/plain')):
     id = savior.add_service(Service.from_dict(yaml.safe_load(svc_yaml)))
     return id

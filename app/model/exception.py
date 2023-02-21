@@ -49,6 +49,13 @@ class InvalidPrayException(AppException):
     def __str__(self):
         return self.mensaje
 
+class FailedPrayException(AppException):
+    def __init__(self,service_name):
+        super().__init__(409, f'No se pudo ejecutar ninguna regla del servicio {service_name}')
+
+    def __str__(self):
+        return self.mensaje
+
 class InvalidSourceException(AppException):
     def __init__(self):
         super().__init__(409, 'Source invalida')
