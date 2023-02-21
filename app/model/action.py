@@ -5,6 +5,7 @@ import sys
 from app.utils.logger_util import get_logger
 import requests as req
 from app.model.context import Context
+from app.utils.ssh_util import SshCredentials as SshCreds,execute_command
 
 logger = get_logger(__name__)
 
@@ -93,3 +94,20 @@ class HttpAction(Action):
 
         return context.eval(result,{"response":response})
 
+class SshCredentials(AppModel):
+    user : str
+    password : str = None
+    key_file : str = None
+
+class SshAction(Action):
+    command: str
+    creds: SshCredentials
+    ip: str
+    port: int = 22
+
+    def apply(self)->str:
+        creds = SshCreds(self.creds.user,self.creds.password,self.creds.key_file)
+        bash_command = self.context.current_rule.get_curated_string(self.command) 
+        bash_command = self.context.eval(bash_command,self.context.context_vars())
+
+        return execute_command(bash_command,self.ip,creds,self.port)

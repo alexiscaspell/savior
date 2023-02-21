@@ -4,11 +4,10 @@ import sys
 from app.model.exception import InvalidSourceException
 import requests as req
 from app.utils.logger_util import get_logger
-import subprocess
-from app.utils.file_util import is_file
 from app.model.context import Context
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
+from app.utils.ssh_util import SshCredentials as SshCreds,execute_command
 
 logger = get_logger(__name__)
 
@@ -96,24 +95,7 @@ class SshLogSource(Source):
     port: int = 22
 
     def get_data(self) -> str:
-        ssh_command=""
-
-        if self.creds.password:
-            if "/" in self.creds.password:
-                ssh_command = f"sshpass -f '{self.creds.password}' "
-            else:
-                ssh_command = f"sshpass -p '{self.creds.password}' "
-
-        ssh_command = ssh_command + f"ssh -o StrictHostKeyChecking=no {self.creds.user}@{self.ip} -p {self.port} "
+        creds = SshCreds(self.creds.user,self.creds.password,self.creds.key_file)
         bash_command = f"'cat {self.filepath}'"
 
-        if self.creds.key_file:
-            ssh_command = ssh_command+f"-i {self.creds.key_file} "
-
-        ssh_command = ssh_command + bash_command
-
-        process = subprocess.Popen(ssh_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
-
-        output, error = process.communicate()
-
-        return output
+        return execute_command(bash_command,self.ip,creds,self.port)
