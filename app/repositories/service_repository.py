@@ -5,6 +5,8 @@ from app.repositories.entity.service_entity import ServiceEntity,RuleServiceEnti
 import app.repositories.source_repository as source_repo
 import app.repositories.rule_repository as rule_repo
 from app.model.exception import ServiceNotFoundException
+from app.repositories.entity.label_entity import LabelServiceEntity
+from app.model.label import ServiceLabel
 
 def get_all()-> List[Service]:
     services = sql.select_all(ServiceEntity)
@@ -48,6 +50,11 @@ def _get_complete_service(incomplete_svc:Service)->Service:
     rules = rule_repo.get_by_ids(rules_ids)
     incomplete_svc.rules = rules
 
+    templates = get_by_labels(incomplete_svc.labels)
+
+    for template in templates:
+        incomplete_svc = template.apply_to_service(incomplete_svc)
+
     return incomplete_svc
 
 
@@ -69,3 +76,27 @@ def get_all_by_name_like(name:str)-> List[Service]:
     services = sql.select_by_filter({"name":f"%{name}%"},ServiceEntity)
 
     return [_get_complete_service(service) for service in services]
+
+def add_label(label:ServiceLabel):
+    sql.insert(label,LabelServiceEntity,return_id=False)
+
+
+def get_label(label_name:str)->ServiceLabel:
+    incomplete_label = sql.select_by_filter({"label":label_name},LabelServiceEntity)
+    
+    service = get_by_id(incomplete_label.service.id)
+    service = _get_complete_service(service)
+
+    incomplete_label.service = service
+
+    return incomplete_label
+
+
+def get_by_labels(labels:List[str])-> List[Service]:
+    services=[]
+
+    for label in labels:
+        label = get_label(label)
+        services.append(label.service)
+
+    return services

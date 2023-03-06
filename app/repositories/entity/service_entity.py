@@ -5,6 +5,11 @@ from app.model.service import Service
 from app.repositories.entity.rule_entity import RuleEntity
 from app.repositories.entity.source_entity import SourceEntity
 
+def list_from_str(some_str,delimiter=",")->list:
+    if some_str is None or some_str=="":
+        return []
+    return some_str.split(delimiter)
+
 class ServiceEntity(ModelEntity):
     __tablename__ = 'SERVICES'
     __table_args__ = {'extend_existing': True}
@@ -13,13 +18,14 @@ class ServiceEntity(ModelEntity):
     id = Column(Integer,primary_key=True,autoincrement=True)
     name = Column(String)
     vars = Column(String)
+    labels = Column(String)
 
-    def to_model(self):
-        return Service(id=self.id,name=self.name,rules=[],sources=[],vars=json.loads(self.vars))
+    def to_model(self)->Service:
+        return Service(id=self.id,name=self.name,rules=[],sources=[],vars=json.loads(self.vars),labels=list_from_str(self.labels))
 
     @staticmethod
     def from_model(s: Service) -> 'ServiceEntity':
-        return ServiceEntity(id=s.id,name=s.name,vars=json.dumps(s.vars))
+        return ServiceEntity(id=s.id,name=s.name,vars=json.dumps(s.vars),labels=",".join(s.labels))
 
 class SourceServiceEntity(ModelEntity):
     __tablename__ = 'SOURCES_SERVICES'

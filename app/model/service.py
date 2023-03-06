@@ -10,6 +10,7 @@ class Service(AppModel):
     rules: List[Rule]
     sources: List[Source]
     vars: Dict = {}
+    labels: List[str]
 
     def ordered_rules(self)->List[Rule]:
         rules_wo_preconditions = list(filter(lambda r:len(r.preconditions)==0,self.rules))
