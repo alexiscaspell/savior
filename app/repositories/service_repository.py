@@ -50,7 +50,7 @@ def _get_complete_service(incomplete_svc:Service)->Service:
     rules = rule_repo.get_by_ids(rules_ids)
     incomplete_svc.rules = rules
 
-    templates = get_by_labels(incomplete_svc.labels)
+    templates = get_all_labels(incomplete_svc.labels)
 
     for template in templates:
         incomplete_svc = template.apply_to_service(incomplete_svc)
@@ -81,22 +81,23 @@ def add_label(label:ServiceLabel):
     sql.insert(label,LabelServiceEntity,return_id=False)
 
 
-def get_label(label_name:str)->ServiceLabel:
-    incomplete_label = sql.select_by_filter({"label":label_name},LabelServiceEntity)
-    
-    service = get_by_id(incomplete_label.service.id)
-    service = _get_complete_service(service)
+def get_labels(label_name:str)->List[ServiceLabel]:
+    incomplete_labels = sql.select_by_filter({"label":label_name},LabelServiceEntity)
 
-    incomplete_label.service = service
+    for incomplete_label in incomplete_labels:
+        service = get_by_id(incomplete_label.service.id)
+        service = _get_complete_service(service)
 
-    return incomplete_label
+        incomplete_label.service = service
+
+    return incomplete_labels
 
 
-def get_by_labels(labels:List[str])-> List[Service]:
-    services=[]
+def get_all_labels(labels:List[str])-> List[ServiceLabel]:
+    all_labels=[]
 
     for label in labels:
-        label = get_label(label)
-        services.append(label.service)
+        svc_labels = get_labels(label)
+        all_labels+=svc_labels
 
-    return services
+    return all_labels

@@ -10,6 +10,7 @@ import yaml
 from app.utils.logger_util import get_logger
 from app.model.context import Context
 import app.services.source_service as source_svc
+from app.model.label import ServiceLabel
 
 logger = get_logger(__name__)
 
@@ -100,3 +101,6 @@ def eval_service_source(service_id:int,source_id:int):
     service = get_service_by_id(service_id)
 
     return source_svc.eval(source_id,{"service",service})
+
+def add_label(label:ServiceLabel):
+    return service_repo.add_label(label)

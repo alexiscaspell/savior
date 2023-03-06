@@ -4,7 +4,7 @@ from typing import List
 from typing import Dict
 
 class ServiceLabel(AppModel):
-    service: Service
+    service: Service = None
     label: str
 
     def apply_to_service(self,svc:Service):

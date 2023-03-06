@@ -27,7 +27,7 @@ class Action(AppModel):
     name: str = None
     type: ActionType
     result: str
-    input: dict=None
+    input: dict = None
     context : Context = None
 
 

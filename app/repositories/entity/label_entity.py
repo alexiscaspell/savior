@@ -13,7 +13,7 @@ class LabelServiceEntity(ModelEntity):
     service_id = Column(Integer, ForeignKey(ServiceEntity.id), primary_key=True)
 
     def to_model(self)->'ServiceLabel':
-        service = Service(id=self.service_id,name="",rules=[],sources=[],vars=dict())
+        service = Service.dummy(self.service_id)
         return ServiceLabel(label=self.label,service=service)
 
     @staticmethod

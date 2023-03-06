@@ -1,6 +1,7 @@
 from fastapi import APIRouter,Request,Body
 from app.utils.rest_util import get_valid_rest_object
 import app.services.savior as savior
+from app.model.label import ServiceLabel
 
 
 import app.config.configuration as conf
@@ -29,6 +30,13 @@ def add_service(svc:Service,infer_ids:bool=False):
 @blue_print.post('{service_id}/sources/{source_id}/eval')
 def eval_service_source(service_id:int,source_id:int):
     result = savior.eval_service_source(service_id,source_id)
+    return get_valid_rest_object(result)
+
+@blue_print.post('{service_id}/labels')
+def add_label(service_id:int,label:ServiceLabel):
+    label.service = Service.dummy(service_id)
+
+    result = savior.add_label(label)
     return get_valid_rest_object(result)
 
 @blue_print.post('/yaml', response_model=int)

@@ -7,10 +7,10 @@ from typing import Dict
 class Service(AppModel):
     id: int = None
     name: str
-    rules: List[Rule]
-    sources: List[Source]
+    rules: List[Rule] = []
+    sources: List[Source] = []
     vars: Dict = {}
-    labels: List[str]
+    labels: List[str] = []
 
     def ordered_rules(self)->List[Rule]:
         rules_wo_preconditions = list(filter(lambda r:len(r.preconditions)==0,self.rules))
@@ -26,3 +26,7 @@ class Service(AppModel):
             list_to_append.append(rule)
 
         return ordered_rules
+
+    @staticmethod
+    def dummy(id:int=None)->"Service":
+        return Service(id=id,name="",rules=[],sources=[],vars=dict())
