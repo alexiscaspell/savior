@@ -32,6 +32,11 @@ def eval_service_source(service_id:int,source_id:int):
     result = savior.eval_service_source(service_id,source_id)
     return get_valid_rest_object(result)
 
+@blue_print.delete('{service_id}')
+def delete_service(service_id:int):
+    result = savior.delete_service(service_id)
+    return get_valid_rest_object(result)
+
 @blue_print.post('{service_id}/labels')
 def add_label(service_id:int,label:ServiceLabel):
     label.service = Service.dummy(service_id)

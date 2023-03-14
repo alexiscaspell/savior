@@ -47,7 +47,7 @@ def _metadata():
     return db.MetaData()
 
 
-def select_by_ids(ids:list,class_entity:ModelEntity) -> List[AppModel]:
+def _select_by_ids(ids:list,class_entity:ModelEntity) -> List[ModelEntity]:
     session = create_session()
 
     q = session.query(class_entity)
@@ -57,10 +57,34 @@ def select_by_ids(ids:list,class_entity:ModelEntity) -> List[AppModel]:
 
     session.close()
 
+    return result
+
+def select_by_ids(ids:list,class_entity:ModelEntity) -> List[AppModel]:
+    result = _select_by_ids(ids,class_entity)
     return [e.to_model() for e in result]
 
+def _select_by_id(id,class_entity:ModelEntity) -> ModelEntity:
+    return _select_one_by_filter({get_metadata(class_entity).id_column:id},class_entity)
+
+def _select_one_by_filter(filter:dict,class_entity:ModelEntity) -> ModelEntity:
+    result = _select_by_filter(filter,class_entity)
+    return result[0] if len(result)>0 else None
+
+def _select_by_filter(filter:dict,class_entity:ModelEntity) -> List[ModelEntity]:
+    session = create_session()
+
+    q = session.query(class_entity).where(
+        and_(getattr(class_entity,k).like(filter[k]) for k in filter)
+    )
+
+    result = q.all()
+
+    session.close()
+
+    return result
+
 def select_by_id(id,class_entity:ModelEntity) -> AppModel:
-    return select_one_by_filter({get_metadata(class_entity).id_column:id},class_entity)
+    return _select_by_id(id,class_entity).to_model()
 
 def select_all(class_entity:ModelEntity) -> List[AppModel]:
     session = create_session()
@@ -74,20 +98,11 @@ def select_all(class_entity:ModelEntity) -> List[AppModel]:
     return [e.to_model() for e in result]
 
 def select_one_by_filter(filter:dict,class_entity:ModelEntity) -> AppModel:
-    result = select_by_filter(filter,class_entity)
-    return result[0] if len(result)>0 else None
+    result = _select_one_by_filter(filter,class_entity)
+    return result.to_model() if not result is None else None
 
 def select_by_filter(filter:dict,class_entity:ModelEntity) -> List[AppModel]:
-    session = create_session()
-
-    q = session.query(class_entity).where(
-        and_(getattr(class_entity,k).like(filter[k]) for k in filter)
-    )
-
-    result = q.all()
-
-    session.close()
-
+    result = _select_by_filter(filter,class_entity)
     return [e.to_model() for e in result]
 
 def get_metadata(entity:ModelEntity):
@@ -122,10 +137,23 @@ def insert(some_obj:AppModel,class_entity: ModelEntity,return_id=True):
 def delete(id,class_entity:ModelEntity):
     session = create_session()
 
-    entity = select_by_id(id,class_entity)
+    entity = _select_by_id(id,class_entity)
 
     session.delete(entity)
     session.commit()
+    session.flush()
+
+def delete_many(ids,class_entity:ModelEntity):
+    entities = select_by_ids(ids,class_entity)
+    delete_by_entities(entities)
+
+def delete_by_entities(entities:List[ModelEntity]):
+    session = create_session()
+
+    for entity in entities:
+        session.delete(entity)
+        session.commit()
+
     session.flush()
 
 def get_table(entity_class:ModelEntity):

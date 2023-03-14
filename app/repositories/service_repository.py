@@ -84,6 +84,10 @@ def add_label(label:ServiceLabel):
 def get_labels(label_name:str)->List[ServiceLabel]:
     incomplete_labels = sql.select_by_filter({"label":label_name},LabelServiceEntity)
 
+    if len(incomplete_labels)==0:
+        service = get_by_name(label_name)
+        return [ServiceLabel(service=service,label=label_name)]
+
     for incomplete_label in incomplete_labels:
         service = get_by_id(incomplete_label.service.id)
         service = _get_complete_service(service)
@@ -98,6 +102,16 @@ def get_all_labels(labels:List[str])-> List[ServiceLabel]:
 
     for label in labels:
         svc_labels = get_labels(label)
-        all_labels+=svc_labels
+        all_labels = all_labels+svc_labels
 
     return all_labels
+
+def delete(id:int)->int:
+    source_service_entities = sql.select_by_filter({"service_id":int(id)},SourceServiceEntity)
+    rules_service_entities = sql.select_by_filter({"service_id":id},RuleServiceEntity)
+
+    sql.delete_by_entities(source_service_entities)
+    sql.delete_by_entities(rules_service_entities)
+
+    sql.delete(id,ServiceEntity)
+    return id

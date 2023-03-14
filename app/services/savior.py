@@ -104,3 +104,6 @@ def eval_service_source(service_id:int,source_id:int):
 
 def add_label(label:ServiceLabel):
     return service_repo.add_label(label)
+
+def delete_service(service_id:int)->int:
+    return service_repo.delete(service_id)
