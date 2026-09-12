@@ -138,7 +138,6 @@ fly.toml
 
 # Others
 /backend/files/data_hard.json
-/backend/files/data_hard.yml
 /files/data_hard.json
 /files/data_hard.yml
 
