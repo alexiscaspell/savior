@@ -137,6 +137,27 @@ pytest -v
 
 Cubre mock YAML, CRUD de services/sources y pray (incl. `source: null` y happy path con HTTP mockeado).
 
+### CI / Docker Hub
+
+En push a `main` (y tags `v*`), GitHub Actions:
+
+1. Corre tests del backend y build del frontend
+2. Publica imágenes multi-arch (`linux/amd64`, `linux/arm64`):
+   - [`alexiscaspell/savior`](https://hub.docker.com/r/alexiscaspell/savior) (API)
+   - [`alexiscaspell/savior-ui`](https://hub.docker.com/r/alexiscaspell/savior-ui) (admin)
+
+Secrets requeridos en el repo de GitHub:
+
+* `DOCKERHUB_USERNAME`
+* `DOCKERHUB_TOKEN`
+
+Localmente:
+
+```sh
+export DOCKER_HUB_PERSONAL_TOKEN=...
+./scripts/build_and_push.sh 0.0.2
+```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
