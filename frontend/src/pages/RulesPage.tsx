@@ -18,6 +18,7 @@ import type { Action, Rule } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import RuleFormDialog from '../components/RuleFormDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function RulesPage() {
   const [items, setItems] = useState<Rule[]>([])
@@ -26,6 +27,7 @@ export default function RulesPage() {
   const [editing, setEditing] = useState<Rule | null>(null)
   const [toDelete, setToDelete] = useState<Rule | null>(null)
   const { showError, showSuccess } = useToast()
+  const { t } = usePrefs()
 
   const load = useCallback(async () => {
     try {
@@ -45,10 +47,10 @@ export default function RulesPage() {
     try {
       if (rule.id) {
         await rulesApi.update(rule.id, rule, true)
-        showSuccess('Rule actualizada')
+        showSuccess(t('rules.updated'))
       } else {
         await rulesApi.create(rule, true)
-        showSuccess('Rule creada')
+        showSuccess(t('rules.created'))
       }
       await load()
     } catch (e) {
@@ -61,7 +63,7 @@ export default function RulesPage() {
     if (!toDelete?.id) return
     try {
       await rulesApi.remove(toDelete.id)
-      showSuccess('Rule eliminada')
+      showSuccess(t('rules.deleted'))
       setToDelete(null)
       await load()
     } catch (e) {
@@ -72,23 +74,23 @@ export default function RulesPage() {
   return (
     <>
       <PageHeader
-        title="Rules"
-        subtitle="Expresiones y consecuencias asociadas"
+        title={t('rules.title')}
+        subtitle={t('rules.subtitle')}
         onCreate={() => {
           setEditing(null)
           setDialogOpen(true)
         }}
-        createLabel="Nueva rule"
+        createLabel={t('rules.new')}
       />
       <TableContainer component={Paper} elevation={1}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell>Expression</TableCell>
-              <TableCell>Actions</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell>{t('common.id')}</TableCell>
+              <TableCell>{t('common.name')}</TableCell>
+              <TableCell>{t('rules.expression')}</TableCell>
+              <TableCell>{t('nav.actions')}</TableCell>
+              <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -101,7 +103,7 @@ export default function RulesPage() {
                 </TableCell>
                 <TableCell>{r.actions?.length || 0}</TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Editar">
+                  <Tooltip title={t('common.edit')}>
                     <IconButton
                       onClick={() => {
                         setEditing(r)
@@ -111,7 +113,7 @@ export default function RulesPage() {
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Eliminar">
+                  <Tooltip title={t('common.delete')}>
                     <IconButton color="error" onClick={() => setToDelete(r)}>
                       <DeleteIcon />
                     </IconButton>
@@ -122,7 +124,7 @@ export default function RulesPage() {
             {items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center">
-                  No hay rules
+                  {t('rules.empty')}
                 </TableCell>
               </TableRow>
             )}
@@ -139,8 +141,8 @@ export default function RulesPage() {
       />
       <ConfirmDialog
         open={Boolean(toDelete)}
-        title="Eliminar rule"
-        message={`¿Eliminar "${toDelete?.name}"?`}
+        title={t('rules.deleteTitle')}
+        message={t('rules.deleteMsg', { name: toDelete?.name || '' })}
         onClose={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />

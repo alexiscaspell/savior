@@ -43,6 +43,19 @@
       </ul>
     </li>
     <li>
+      <a href="#conceptos">Conceptos</a>
+      <ul>
+        <li><a href="#visión-general">Visión general</a></li>
+        <li><a href="#service">Service</a></li>
+        <li><a href="#source">Source</a></li>
+        <li><a href="#rule">Rule</a></li>
+        <li><a href="#action-y-consequence">Action y Consequence</a></li>
+        <li><a href="#label">Label</a></li>
+        <li><a href="#pray">Pray</a></li>
+        <li><a href="#ejemplo-completo">Ejemplo completo</a></li>
+      </ul>
+    </li>
+    <li>
       <a href="#empezando">Empezando</a>
       <ul>
         <li><a href="#prerequisitos">Prerequisitos</a></li>
@@ -76,6 +89,245 @@ Para realizar esto se utilizo:
 * [![Docker][Docker]][Docker-url]
 * [![Python][Python]][Python-url]
 * React + Vite + MUI (admin web)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- CONCEPTS -->
+## Conceptos
+
+SAVIOR observa servicios, evalúa reglas y dispara acciones (consecuencias) cuando algo anda mal.
+
+```
+Service
+ ├── vars
+ ├── labels  ──────────────► Label (plantilla → otro Service)
+ ├── sources[]               (cómo obtener datos)
+ └── rules[]
+      ├── expression
+      ├── source (qué sources usa)
+      ├── preconditions
+      └── actions[]  ──────► al cumplirse → Consequence[]
+```
+
+### Visión general
+
+| Concepto | Qué es en una frase |
+|----------|---------------------|
+| **Service** | El sistema/API que querés cuidar |
+| **Source** | De dónde se obtienen datos (HTTP, SSH, etc.) |
+| **Rule** | Condición a evaluar (`expression`) |
+| **Action** | Qué hacer si la rule se cumple |
+| **Consequence** | Resultado concreto de una action al ejecutar un Pray |
+| **Label** | Plantilla reutilizable de vars/rules entre services |
+| **Pray** | “Rezá” por un service: evalúa rules y aplica actions |
+
+### Service
+
+Un **service** es el contenedor principal. Agrupa sources, rules, variables (`vars`) y labels.
+
+```yaml
+- name: "pruebita"
+  vars:
+    env: staging
+  labels: []          # opcionales; ver Label
+  sources: [...]
+  rules: [...]
+```
+
+Al hacer un **Pray**, SAVIOR carga el service completo (incluyendo rules heredadas por labels) y recorre sus rules en orden (respetando `preconditions`).
+
+### Source
+
+Un **source** define **cómo** obtener datos para evaluar expressions.
+
+Campos importantes:
+
+| Campo | Uso |
+|-------|-----|
+| `type` | `http_request`, `http_log`, `ssh_log`, `custom` |
+| `name` | Identificador opcional (útil para referenciar desde rules) |
+| `variable` | Alias en expressions, ej. `$response` |
+| `input` | Parámetros según el tipo (url, method, creds, …) |
+| `output` | Expresión opcional para transformar la respuesta |
+
+Ejemplo HTTP:
+
+```yaml
+- type: http_request
+  name: input_alive
+  variable: $response_alive
+  input:
+    method: get
+    url: https://httpbin.org/status/200
+```
+
+En la expression de una rule, `$response_alive` se reemplaza por los datos de ese source.
+
+### Rule
+
+Una **rule** es una condición. Si se cumple, se ejecutan sus **actions**.
+
+| Campo | Uso |
+|-------|-----|
+| `name` | Nombre único lógico |
+| `expression` | Condición booleana (Python evaluado en contexto) |
+| `source` | Qué sources alimentar: `variables`, `names`, `renames` |
+| `preconditions` | Nombres de otras rules que deben haberse cumplido antes |
+| `actions` | Lista de actions a disparar |
+
+Cómo se eligen los sources de una rule:
+
+- `source.variables: [$response]` → usa sources cuya `variable` esté en esa lista
+- `source.names: [input_alive]` → usa sources por `name`
+- `source.renames` → renombra variables en la expression (ej. `response_alive → response` para reutilizar `$response`)
+
+Ejemplo:
+
+```yaml
+- name: alive_status
+  source:
+    variables:
+      - $response
+  expression: "$response.status_code != 200"
+  actions:
+    - name: suggest-something
+      type: suggest
+      result: "El endpoint principal respondió mal; probá /alive"
+```
+
+### Action y Consequence
+
+Una **action** es la definición de “qué hacer”. Una **consequence** es el resultado de aplicar esa action en un Pray concreto.
+
+Tipos de action:
+
+| `type` | Qué hace |
+|--------|----------|
+| `suggest` | Evalúa `result` y devuelve un mensaje/sugerencia |
+| `http_action` | Hace un HTTP request (`input.url`, `method`, …) y evalúa `result` |
+| `set_variable` | Escribe una variable en `service.vars` |
+| `ssh` | Ejecuta un comando remoto por SSH |
+| `custom` | Extensión custom |
+
+Ejemplo `suggest`:
+
+```yaml
+- name: suggest-health
+  type: suggest
+  result: "Healthcheck falló; revisá el servicio"
+```
+
+Ejemplo `http_action`:
+
+```yaml
+- name: check-alive
+  type: http_action
+  input:
+    url: https://httpbin.org/status/200
+    method: get
+  result: "f'Alive check: {$response.status_code}'"
+```
+
+Respuesta típica de un Pray (consequences):
+
+```json
+{
+  "service": "pruebita",
+  "rules": [
+    {
+      "name": "alive_status",
+      "consequences": [
+        { "action": "suggest-something", "result": "El endpoint principal respondió mal..." },
+        { "action": "check-alive", "result": "Alive check: 200" }
+      ]
+    }
+  ]
+}
+```
+
+### Label
+
+Un **label** es una **plantilla**: asocia un nombre (ej. `http-health`) a un service “modelo”.  
+Otro service que declare ese label en su lista `labels` **hereda** al cargarse:
+
+1. las `vars` del template (las propias del service pisan si hay conflicto)
+2. las `rules` del template que todavía no tenga
+
+No hereda sources: el consumidor debe tener sus propios sources (con los mismos `name`/`variable` que esperan las rules de la plantilla).
+
+Alta de la asociación (YAML de seed):
+
+```yaml
+labels:
+  - label: http-health
+    service_name: healthcheck_template
+```
+
+Service consumidor:
+
+```yaml
+- name: api_consumidor
+  labels:
+    - http-health
+  vars:
+    env: staging
+  sources:
+    - type: http_request
+      name: health_probe
+      variable: $response
+      input:
+        method: get
+        url: https://httpbin.org/status/503
+  rules: []   # hereda health_not_ok del template
+```
+
+### Pray
+
+**Pray** (“plegaria”) es la operación de ejecución: elegís un service y SAVIOR evalúa sus rules.
+
+```http
+POST /api/v1/savior/pray
+Content-Type: application/json
+
+{
+  "service_id": 1,
+  "fast": false,
+  "params": {}
+}
+```
+
+| Campo | Uso |
+|-------|-----|
+| `service_id` / `service_name` | Qué service evaluar (uno de los dos) |
+| `fast` | Si es `true`, corta al primer match |
+| `source` | Filtro opcional por source |
+| `params` | Dict mergeado al service antes de evaluar |
+
+También lo podés disparar desde la UI en la pantalla **Pray**.
+
+### Ejemplo completo
+
+Flujo mental con el seed (`backend/files/data_hard.yml`):
+
+1. `healthcheck_template` define la rule `health_not_ok` y el label `http-health` apunta a él.
+2. `api_consumidor` solo declara `labels: [http-health]` + un source `health_probe`.
+3. Al hacer Pray sobre `api_consumidor`:
+   - hereda `health_not_ok`
+   - consulta el source
+   - si `status_code != 200`, dispara `suggest-health`
+   - esa ejecución se refleja como **consequence** en la respuesta
+
+Para explorar más ejemplos cargados:
+
+```sh
+curl http://localhost:5000/api/v1/services
+curl http://localhost:5000/api/v1/labels
+curl -X POST http://localhost:5000/api/v1/savior/pray \
+  -H 'Content-Type: application/json' \
+  -d '{"service_name":"api_consumidor","params":{}}'
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -167,7 +419,10 @@ export DOCKER_HUB_PERSONAL_TOKEN=...
 
 ### Admin web
 
-Desde la UI podés dar de alta y editar **Services**, **Sources**, **Rules**, **Actions**, **Labels** y ejecutar un **Pray**.
+Desde la UI podés dar de alta y editar **Services**, **Sources**, **Rules**, **Actions**, **Labels** y ejecutar un **Pray**.  
+Ver la sección [Conceptos](#conceptos) para el significado de cada uno.
+
+También hay toggle de **tema claro/oscuro** e idioma **ES/EN**.
 
 ### Configuracion
 

@@ -20,6 +20,7 @@ import { prayApi } from '../api/pray'
 import { servicesApi } from '../api/services'
 import type { PrayResponse, Service } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function PrayPage() {
   const [services, setServices] = useState<Service[]>([])
@@ -30,6 +31,7 @@ export default function PrayPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PrayResponse | null>(null)
   const { showError, showSuccess } = useToast()
+  const { t } = usePrefs()
 
   useEffect(() => {
     servicesApi
@@ -43,11 +45,11 @@ export default function PrayPage() {
     try {
       params = JSON.parse(paramsJson)
     } catch {
-      showError('JSON de params inválido')
+      showError(t('pray.invalidParams'))
       return
     }
     if (!serviceId) {
-      showError('Seleccioná un service')
+      showError(t('pray.selectService'))
       return
     }
     setLoading(true)
@@ -63,7 +65,7 @@ export default function PrayPage() {
       }
       const res = await prayApi.pray(payload)
       setResult(res)
-      showSuccess('Pray ejecutado')
+      showSuccess(t('pray.success'))
     } catch (e) {
       showError((e as Error).message)
     } finally {
@@ -73,17 +75,14 @@ export default function PrayPage() {
 
   return (
     <>
-      <PageHeader
-        title="Pray"
-        subtitle="Evaluá rules de un service y ejecutá consecuencias"
-      />
+      <PageHeader title={t('pray.title')} subtitle={t('pray.subtitle')} />
 
       <Paper elevation={1} sx={{ p: 3, mb: 3, maxWidth: 720 }}>
         <Stack spacing={2}>
           <FormControl fullWidth>
-            <InputLabel>Service</InputLabel>
+            <InputLabel>{t('pray.service')}</InputLabel>
             <Select
-              label="Service"
+              label={t('pray.service')}
               value={serviceId}
               onChange={(e) => setServiceId(e.target.value as number)}
             >
@@ -95,17 +94,17 @@ export default function PrayPage() {
             </Select>
           </FormControl>
           <TextField
-            label="Filtro source (opcional)"
+            label={t('pray.sourceFilter')}
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
             fullWidth
           />
           <FormControlLabel
             control={<Checkbox checked={fast} onChange={(e) => setFast(e.target.checked)} />}
-            label="Fast (cortar al primer match)"
+            label={t('pray.fast')}
           />
           <TextField
-            label="Params (JSON)"
+            label={t('pray.params')}
             value={paramsJson}
             onChange={(e) => setParamsJson(e.target.value)}
             multiline
@@ -121,7 +120,7 @@ export default function PrayPage() {
             disabled={loading}
             sx={{ alignSelf: 'flex-start' }}
           >
-            {loading ? 'Orando…' : 'Pray'}
+            {loading ? t('pray.running') : t('pray.run')}
           </Button>
         </Stack>
       </Paper>
@@ -131,10 +130,10 @@ export default function PrayPage() {
           {result && (
             <Paper elevation={1} sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Resultado · {result.service}
+                {t('pray.result')} · {result.service}
               </Typography>
               {(result.rules || []).length === 0 && (
-                <Typography color="text.secondary">Ninguna rule matcheó.</Typography>
+                <Typography color="text.secondary">{t('pray.noMatch')}</Typography>
               )}
               <Stack spacing={2}>
                 {(result.rules || []).map((r, i) => (
@@ -142,7 +141,7 @@ export default function PrayPage() {
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                       <Chip label={r.name} color="primary" />
                       <Typography variant="caption" color="text.secondary">
-                        {r.consequences?.length || 0} consequence(s)
+                        {r.consequences?.length || 0} {t('pray.consequences')}
                       </Typography>
                     </Stack>
                     <Stack spacing={1}>
@@ -152,7 +151,7 @@ export default function PrayPage() {
                           sx={{
                             p: 1.5,
                             borderRadius: 2,
-                            bgcolor: 'rgba(13,148,136,0.06)',
+                            bgcolor: 'action.hover',
                           }}
                         >
                           <Typography variant="subtitle2">{c.action}</Typography>

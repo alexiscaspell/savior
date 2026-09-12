@@ -19,17 +19,18 @@ logger = get_logger(__name__)
 
 
 def mock(file_path, force: bool = False):
-    """Carga services de ejemplo desde YAML. Por defecto no duplica si ya hay data."""
+    """Carga services y labels de ejemplo desde YAML. Por defecto no duplica si ya hay data."""
     existing = service_repo.get_all()
     if existing and not force:
         logger.info(f"Mock omitido: ya hay {len(existing)} service(s) en la DB")
-        return {"loaded": 0, "skipped": True, "existing": len(existing)}
+        return {"loaded": 0, "labels_loaded": 0, "skipped": True, "existing": len(existing)}
 
     with open(file_path) as f:
         services_dict = yaml.safe_load(f)
 
     logger.info(f"Cargando mock desde {file_path}")
     loaded = 0
+    labels_loaded = 0
 
     for service_dict in services_dict.get("services", []):
         service = Service.from_dict(service_dict)
@@ -37,7 +38,40 @@ def mock(file_path, force: bool = False):
         service_repo.add(service)
         loaded += 1
 
-    return {"loaded": loaded, "skipped": False, "existing": len(existing)}
+    for label_dict in services_dict.get("labels", []) or []:
+        label_name = label_dict.get("label")
+        service_name = label_dict.get("service_name") or label_dict.get("service")
+        if not label_name or not service_name:
+            logger.warning(f"Label inválido en mock: {label_dict}")
+            continue
+
+        template = service_repo.get_by_name(service_name)
+        if template is None:
+            logger.warning(f"No se encontró service plantilla '{service_name}' para label '{label_name}'")
+            continue
+
+        # Idempotente: LABELS_SERVICES usa service_id como PK
+        from app.utils.sqlite import sqlite_util as sql
+        from app.repositories.entity.label_entity import LabelServiceEntity
+
+        already = sql.select_by_filter({"label": label_name}, LabelServiceEntity)
+        if already:
+            logger.info(f"Label '{label_name}' ya existe, se omite")
+            continue
+
+        service_repo.add_label(ServiceLabel(
+            label=label_name,
+            service=Service.dummy(template.id),
+        ))
+        labels_loaded += 1
+        logger.info(f"Label '{label_name}' → service '{service_name}' ({template.id})")
+
+    return {
+        "loaded": loaded,
+        "labels_loaded": labels_loaded,
+        "skipped": False,
+        "existing": len(existing),
+    }
 
 
 def add_service(service:Service,infer_ids:bool=False)->int:

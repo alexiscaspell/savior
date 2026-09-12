@@ -1,8 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { CssBaseline, ThemeProvider } from '@mui/material'
-import { theme } from './theme'
 import AppLayout from './layout/AppLayout'
 import { ToastProvider } from './components/PageHeader'
+import { PrefsProvider, useAppTheme } from './i18n/PrefsContext'
 import ServicesPage from './pages/ServicesPage'
 import ServiceDetailPage from './pages/ServiceDetailPage'
 import SourcesPage from './pages/SourcesPage'
@@ -11,7 +11,8 @@ import ActionsPage from './pages/ActionsPage'
 import LabelsPage from './pages/LabelsPage'
 import PrayPage from './pages/PrayPage'
 
-export default function App() {
+function ThemedApp() {
+  const theme = useAppTheme()
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -32,5 +33,13 @@ export default function App() {
         </BrowserRouter>
       </ToastProvider>
     </ThemeProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <PrefsProvider>
+      <ThemedApp />
+    </PrefsProvider>
   )
 }

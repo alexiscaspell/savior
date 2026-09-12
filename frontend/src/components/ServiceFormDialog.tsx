@@ -11,6 +11,7 @@ import {
 import type { TransitionProps } from '@mui/material/transitions'
 import { forwardRef, useEffect, useState } from 'react'
 import type { Service } from '../types/models'
+import { usePrefs } from '../i18n/PrefsContext'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -30,6 +31,7 @@ export default function ServiceFormDialog({
   onClose: () => void
   onSave: (service: Service) => Promise<void>
 }) {
+  const { t } = usePrefs()
   const [name, setName] = useState('')
   const [varsJson, setVarsJson] = useState('{}')
   const [labels, setLabels] = useState('')
@@ -50,7 +52,7 @@ export default function ServiceFormDialog({
     try {
       vars = JSON.parse(varsJson)
     } catch {
-      setError('JSON de vars inválido')
+      setError(t('services.invalidVars'))
       return
     }
     setSaving(true)
@@ -74,18 +76,18 @@ export default function ServiceFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? 'Editar service' : 'Nuevo service'}</DialogTitle>
+      <DialogTitle>{initial?.id ? t('services.edit') : t('services.create')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
-            label="Nombre"
+            label={t('common.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
           <TextField
-            label="Vars (JSON)"
+            label={t('services.varsJson')}
             value={varsJson}
             onChange={(e) => setVarsJson(e.target.value)}
             multiline
@@ -96,18 +98,18 @@ export default function ServiceFormDialog({
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
           <TextField
-            label="Labels"
+            label={t('services.labelsField')}
             value={labels}
             onChange={(e) => setLabels(e.target.value)}
-            helperText="Separados por coma"
+            helperText={t('services.labelsHint')}
             fullWidth
           />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !name}>
-          Guardar
+          {t('common.save')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -42,7 +42,14 @@ def test_mock_endpoint_with_repo_yaml(client):
     response = client.get("/mock")
     assert response.status_code == 200
     body = response.json()
-    assert body["loaded"] >= 1
+    assert body["loaded"] >= 3
+    assert body.get("labels_loaded", 0) >= 1
 
-    services = client.get("/api/v1/services").json()
-    assert any(s["name"] == "pruebita" for s in services)
+    services = {s["name"]: s for s in client.get("/api/v1/services").json()}
+    assert "pruebita" in services
+    assert "healthcheck_template" in services
+    assert "api_consumidor" in services
+    assert "health_not_ok" in {r["name"] for r in services["api_consumidor"]["rules"]}
+
+    labels = client.get("/api/v1/labels").json()
+    assert any(l["label"] == "http-health" for l in labels)

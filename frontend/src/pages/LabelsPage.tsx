@@ -23,6 +23,7 @@ import { servicesApi } from '../api/services'
 import type { Service, ServiceLabel } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function LabelsPage() {
   const [items, setItems] = useState<ServiceLabel[]>([])
@@ -31,6 +32,7 @@ export default function LabelsPage() {
   const [serviceId, setServiceId] = useState<number | ''>('')
   const [toDelete, setToDelete] = useState<ServiceLabel | null>(null)
   const { showError, showSuccess } = useToast()
+  const { t } = usePrefs()
 
   const load = useCallback(async () => {
     try {
@@ -53,7 +55,7 @@ export default function LabelsPage() {
         label,
         service: { id: serviceId as number },
       })
-      showSuccess('Label creado')
+      showSuccess(t('labels.created'))
       setLabel('')
       setServiceId('')
       await load()
@@ -66,7 +68,7 @@ export default function LabelsPage() {
     if (!toDelete?.service?.id) return
     try {
       await labelsApi.remove(toDelete.service.id, toDelete.label)
-      showSuccess('Label eliminado')
+      showSuccess(t('labels.deleted'))
       setToDelete(null)
       await load()
     } catch (e) {
@@ -76,23 +78,20 @@ export default function LabelsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Labels"
-        subtitle="Plantillas reutilizables de rules/vars entre services"
-      />
+      <PageHeader title={t('labels.title')} subtitle={t('labels.subtitle')} />
 
       <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
           <TextField
-            label="Label"
+            label={t('labels.label')}
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             sx={{ minWidth: 180 }}
           />
           <FormControl sx={{ minWidth: 220 }} size="small">
-            <InputLabel>Service plantilla</InputLabel>
+            <InputLabel>{t('labels.templateService')}</InputLabel>
             <Select
-              label="Service plantilla"
+              label={t('labels.templateService')}
               value={serviceId}
               onChange={(e) => setServiceId(e.target.value as number)}
             >
@@ -104,7 +103,7 @@ export default function LabelsPage() {
             </Select>
           </FormControl>
           <Button variant="contained" onClick={create} disabled={!label || !serviceId}>
-            Crear asociación
+            {t('labels.create')}
           </Button>
         </Stack>
       </Paper>
@@ -113,10 +112,10 @@ export default function LabelsPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Label</TableCell>
-              <TableCell>Service ID</TableCell>
-              <TableCell>Service</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell>{t('labels.label')}</TableCell>
+              <TableCell>{t('labels.serviceId')}</TableCell>
+              <TableCell>{t('labels.service')}</TableCell>
+              <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -126,7 +125,7 @@ export default function LabelsPage() {
                 <TableCell>{item.service?.id}</TableCell>
                 <TableCell>{item.service?.name || '—'}</TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Eliminar">
+                  <Tooltip title={t('common.delete')}>
                     <IconButton color="error" onClick={() => setToDelete(item)}>
                       <DeleteIcon />
                     </IconButton>
@@ -137,7 +136,7 @@ export default function LabelsPage() {
             {items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} align="center">
-                  No hay labels
+                  {t('labels.empty')}
                 </TableCell>
               </TableRow>
             )}
@@ -147,8 +146,11 @@ export default function LabelsPage() {
 
       <ConfirmDialog
         open={Boolean(toDelete)}
-        title="Eliminar label"
-        message={`¿Eliminar label "${toDelete?.label}" del service ${toDelete?.service?.id}?`}
+        title={t('labels.deleteTitle')}
+        message={t('labels.deleteMsg', {
+          name: toDelete?.label || '',
+          id: toDelete?.service?.id || '',
+        })}
         onClose={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />

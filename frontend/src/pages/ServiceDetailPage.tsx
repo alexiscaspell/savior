@@ -22,12 +22,14 @@ import { sourcesApi } from '../api/sources'
 import { rulesApi } from '../api/rules'
 import type { Rule, Service, Source } from '../types/models'
 import { useToast } from '../components/PageHeader'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function ServiceDetailPage() {
   const { id } = useParams()
   const serviceId = Number(id)
   const navigate = useNavigate()
   const { showError, showSuccess } = useToast()
+  const { t } = usePrefs()
   const [service, setService] = useState<Service | null>(null)
   const [tab, setTab] = useState(0)
   const [allSources, setAllSources] = useState<Source[]>([])
@@ -55,7 +57,7 @@ export default function ServiceDetailPage() {
   }, [load])
 
   if (!service) {
-    return <Typography>Cargando…</Typography>
+    return <Typography>{t('common.loading')}</Typography>
   }
 
   const linkedSourceIds = new Set((service.sources || []).map((s) => s.id))
@@ -70,21 +72,21 @@ export default function ServiceDetailPage() {
         <Box>
           <Typography variant="h4">{service.name}</Typography>
           <Typography variant="body2" color="text.secondary">
-            ID {service.id}
+            {t('common.id')} {service.id}
           </Typography>
         </Box>
       </Stack>
 
       <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle2" gutterBottom>
-          Vars
+          {t('detail.vars')}
         </Typography>
         <Box
           component="pre"
           sx={{
             m: 0,
             p: 1.5,
-            bgcolor: 'rgba(13,148,136,0.06)',
+            bgcolor: 'action.hover',
             borderRadius: 2,
             overflow: 'auto',
             fontSize: 13,
@@ -101,17 +103,17 @@ export default function ServiceDetailPage() {
 
       <Paper elevation={1} sx={{ borderRadius: 4, overflow: 'hidden' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 1, borderBottom: 1, borderColor: 'divider' }}>
-          <Tab label={`Sources (${service.sources?.length || 0})`} />
-          <Tab label={`Rules (${service.rules?.length || 0})`} />
+          <Tab label={t('detail.sourcesTab', { count: service.sources?.length || 0 })} />
+          <Tab label={t('detail.rulesTab', { count: service.rules?.length || 0 })} />
         </Tabs>
 
         {tab === 0 && (
           <Box sx={{ p: 2 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
               <FormControl sx={{ minWidth: 220 }} size="small">
-                <InputLabel>Vincular source</InputLabel>
+                <InputLabel>{t('detail.linkSource')}</InputLabel>
                 <Select
-                  label="Vincular source"
+                  label={t('detail.linkSource')}
                   value={linkSourceId}
                   onChange={(e) => setLinkSourceId(e.target.value as number)}
                 >
@@ -130,7 +132,7 @@ export default function ServiceDetailPage() {
                 onClick={async () => {
                   try {
                     await servicesApi.linkSource(serviceId, linkSourceId as number)
-                    showSuccess('Source vinculado')
+                    showSuccess(t('detail.sourceLinked'))
                     setLinkSourceId('')
                     await load()
                   } catch (e) {
@@ -138,7 +140,7 @@ export default function ServiceDetailPage() {
                   }
                 }}
               >
-                Vincular
+                {t('detail.link')}
               </Button>
             </Stack>
             <Stack spacing={1}>
@@ -159,7 +161,7 @@ export default function ServiceDetailPage() {
                     onClick={async () => {
                       try {
                         await servicesApi.unlinkSource(serviceId, s.id!)
-                        showSuccess('Source desvinculado')
+                        showSuccess(t('detail.sourceUnlinked'))
                         await load()
                       } catch (e) {
                         showError((e as Error).message)
@@ -178,9 +180,9 @@ export default function ServiceDetailPage() {
           <Box sx={{ p: 2 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
               <FormControl sx={{ minWidth: 220 }} size="small">
-                <InputLabel>Vincular rule</InputLabel>
+                <InputLabel>{t('detail.linkRule')}</InputLabel>
                 <Select
-                  label="Vincular rule"
+                  label={t('detail.linkRule')}
                   value={linkRuleId}
                   onChange={(e) => setLinkRuleId(e.target.value as number)}
                 >
@@ -199,7 +201,7 @@ export default function ServiceDetailPage() {
                 onClick={async () => {
                   try {
                     await servicesApi.linkRule(serviceId, linkRuleId as number)
-                    showSuccess('Rule vinculada')
+                    showSuccess(t('detail.ruleLinked'))
                     setLinkRuleId('')
                     await load()
                   } catch (e) {
@@ -207,7 +209,7 @@ export default function ServiceDetailPage() {
                   }
                 }}
               >
-                Vincular
+                {t('detail.link')}
               </Button>
             </Stack>
             <Stack spacing={1}>
@@ -228,7 +230,7 @@ export default function ServiceDetailPage() {
                     onClick={async () => {
                       try {
                         await servicesApi.unlinkRule(serviceId, r.id!)
-                        showSuccess('Rule desvinculada')
+                        showSuccess(t('detail.ruleUnlinked'))
                         await load()
                       } catch (e) {
                         showError((e as Error).message)

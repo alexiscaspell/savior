@@ -75,7 +75,7 @@ def mock_http(monkeypatch):
 
 @pytest.fixture()
 def sample_yaml(tmp_path):
-    """YAML de ejemplo estilo data_hard.yml para tests aislados."""
+    """YAML mínimo estilo pruebita (sin labels) para tests de pray/mock básico."""
     content = """
 services:
   - name: "pruebita"
@@ -120,5 +120,53 @@ services:
             result: "Ahhh el servicio no esta vivoo!"
 """
     path = tmp_path / "sample.yml"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
+@pytest.fixture()
+def labels_yaml(tmp_path):
+    """YAML con service plantilla, label y consumidor que hereda rules/vars."""
+    content = """
+services:
+  - name: "healthcheck_template"
+    vars:
+      team: "platform"
+      alert_channel: "#ops"
+    sources:
+      - type: http_request
+        name: health_probe
+        variable: $response
+        input:
+          method: get
+          url: https://httpbin.org/status/503
+    rules:
+      - name: health_not_ok
+        source:
+          names:
+            - health_probe
+        expression: "$response.status_code != 200"
+        actions:
+          - name: suggest-health
+            type: suggest
+            result: "Healthcheck falló; revisá el servicio"
+  - name: "api_consumidor"
+    labels:
+      - http-health
+    vars:
+      env: "staging"
+    sources:
+      - type: http_request
+        name: health_probe
+        variable: $response
+        input:
+          method: get
+          url: https://httpbin.org/status/503
+    rules: []
+labels:
+  - label: http-health
+    service_name: healthcheck_template
+"""
+    path = tmp_path / "labels_sample.yml"
     path.write_text(content, encoding="utf-8")
     return str(path)

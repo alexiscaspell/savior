@@ -12,6 +12,7 @@ import type { TransitionProps } from '@mui/material/transitions'
 import { forwardRef, useEffect, useState } from 'react'
 import type { Action, Rule } from '../types/models'
 import { ActionMultiSelect } from './ActionFormDialog'
+import { usePrefs } from '../i18n/PrefsContext'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -49,6 +50,7 @@ export default function RuleFormDialog({
   const [actionIds, setActionIds] = useState<number[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { t } = usePrefs()
 
   useEffect(() => {
     if (open) {
@@ -68,7 +70,7 @@ export default function RuleFormDialog({
     try {
       renames = JSON.parse(renamesJson)
     } catch {
-      setError('JSON de renames inválido')
+      setError(t('rules.invalidRenames'))
       return
     }
     const actions = availableActions.filter((a) => a.id != null && actionIds.includes(a.id))
@@ -102,56 +104,56 @@ export default function RuleFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? 'Editar rule' : 'Nueva rule'}</DialogTitle>
+      <DialogTitle>{initial?.id ? t('rules.edit') : t('rules.create')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
-            label="Nombre"
+            label={t('common.name')}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             fullWidth
             required
           />
           <TextField
-            label="Expression"
+            label={t('rules.expression')}
             value={form.expression}
             onChange={(e) => setForm({ ...form, expression: e.target.value })}
-            helperText='Ej: $response.status_code != 200'
+            helperText={t('rules.expressionHint')}
             fullWidth
             required
             multiline
             minRows={2}
           />
           <TextField
-            label="Source variables"
+            label={t('rules.sourceVars')}
             value={variables}
             onChange={(e) => setVariables(e.target.value)}
-            helperText="Separadas por coma. Ej: $response"
+            helperText={t('rules.sourceVarsHint')}
             fullWidth
           />
           <TextField
-            label="Source names"
+            label={t('rules.sourceNames')}
             value={names}
             onChange={(e) => setNames(e.target.value)}
-            helperText="Nombres de sources del service. Separados por coma"
+            helperText={t('rules.sourceNamesHint')}
             fullWidth
           />
           <TextField
-            label="Source renames (JSON)"
+            label={t('rules.renames')}
             value={renamesJson}
             onChange={(e) => setRenamesJson(e.target.value)}
             multiline
             minRows={2}
             error={Boolean(error)}
-            helperText={error || 'Ej: {"response_alive": "response"}'}
+            helperText={error || t('rules.renamesHint')}
             fullWidth
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
           <TextField
-            label="Preconditions"
+            label={t('rules.preconditions')}
             value={preconditions}
             onChange={(e) => setPreconditions(e.target.value)}
-            helperText="Nombres de rules previas, separadas por coma"
+            helperText={t('rules.preconditionsHint')}
             fullWidth
           />
           <ActionMultiSelect
@@ -162,9 +164,9 @@ export default function RuleFormDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving || !form.name}>
-          Guardar
+          {t('common.save')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -18,6 +18,7 @@ import type { Action } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import ActionFormDialog from '../components/ActionFormDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function ActionsPage() {
   const [items, setItems] = useState<Action[]>([])
@@ -25,6 +26,7 @@ export default function ActionsPage() {
   const [editing, setEditing] = useState<Action | null>(null)
   const [toDelete, setToDelete] = useState<Action | null>(null)
   const { showError, showSuccess } = useToast()
+  const { t } = usePrefs()
 
   const load = useCallback(async () => {
     try {
@@ -42,10 +44,10 @@ export default function ActionsPage() {
     try {
       if (action.id) {
         await actionsApi.update(action.id, action)
-        showSuccess('Action actualizada')
+        showSuccess(t('actions.updated'))
       } else {
         await actionsApi.create(action)
-        showSuccess('Action creada')
+        showSuccess(t('actions.created'))
       }
       await load()
     } catch (e) {
@@ -58,7 +60,7 @@ export default function ActionsPage() {
     if (!toDelete?.id) return
     try {
       await actionsApi.remove(toDelete.id)
-      showSuccess('Action eliminada')
+      showSuccess(t('actions.deleted'))
       setToDelete(null)
       await load()
     } catch (e) {
@@ -69,23 +71,23 @@ export default function ActionsPage() {
   return (
     <>
       <PageHeader
-        title="Actions"
-        subtitle="Consecuencias: suggest, HTTP, SSH, variables"
+        title={t('actions.title')}
+        subtitle={t('actions.subtitle')}
         onCreate={() => {
           setEditing(null)
           setDialogOpen(true)
         }}
-        createLabel="Nueva action"
+        createLabel={t('actions.new')}
       />
       <TableContainer component={Paper} elevation={1}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Result</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell>{t('common.id')}</TableCell>
+              <TableCell>{t('common.name')}</TableCell>
+              <TableCell>{t('common.type')}</TableCell>
+              <TableCell>{t('actions.result')}</TableCell>
+              <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -100,7 +102,7 @@ export default function ActionsPage() {
                   <code style={{ fontSize: 12 }}>{a.result}</code>
                 </TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Editar">
+                  <Tooltip title={t('common.edit')}>
                     <IconButton
                       onClick={() => {
                         setEditing(a)
@@ -110,7 +112,7 @@ export default function ActionsPage() {
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Eliminar">
+                  <Tooltip title={t('common.delete')}>
                     <IconButton color="error" onClick={() => setToDelete(a)}>
                       <DeleteIcon />
                     </IconButton>
@@ -121,7 +123,7 @@ export default function ActionsPage() {
             {items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center">
-                  No hay actions
+                  {t('actions.empty')}
                 </TableCell>
               </TableRow>
             )}
@@ -137,8 +139,8 @@ export default function ActionsPage() {
       />
       <ConfirmDialog
         open={Boolean(toDelete)}
-        title="Eliminar action"
-        message={`¿Eliminar "${toDelete?.name || toDelete?.id}"?`}
+        title={t('actions.deleteTitle')}
+        message={t('actions.deleteMsg', { name: String(toDelete?.name || toDelete?.id || '') })}
         onClose={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />

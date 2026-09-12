@@ -9,6 +9,7 @@ import {
 } from '@mui/material'
 import type { TransitionProps } from '@mui/material/transitions'
 import { forwardRef } from 'react'
+import { usePrefs } from '../i18n/PrefsContext'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -30,6 +31,7 @@ export default function ConfirmDialog({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const { t } = usePrefs()
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} keepMounted>
       <DialogTitle>{title}</DialogTitle>
@@ -37,9 +39,9 @@ export default function ConfirmDialog({
         <DialogContentText>{message}</DialogContentText>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button color="error" variant="contained" onClick={onConfirm}>
-          Eliminar
+          {t('common.delete')}
         </Button>
       </DialogActions>
     </Dialog>

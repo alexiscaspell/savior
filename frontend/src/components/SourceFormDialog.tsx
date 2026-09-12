@@ -15,6 +15,7 @@ import {
 import type { TransitionProps } from '@mui/material/transitions'
 import { forwardRef, useEffect, useState } from 'react'
 import type { Source, SourceType } from '../types/models'
+import { usePrefs } from '../i18n/PrefsContext'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -63,6 +64,7 @@ export default function SourceFormDialog({
   const [inputJson, setInputJson] = useState('{}')
   const [saving, setSaving] = useState(false)
   const [jsonError, setJsonError] = useState('')
+  const { t } = usePrefs()
 
   useEffect(() => {
     if (open) {
@@ -85,7 +87,7 @@ export default function SourceFormDialog({
       input = JSON.parse(inputJson)
       setJsonError('')
     } catch {
-      setJsonError('JSON de input inválido')
+      setJsonError(t('sources.invalidJson'))
       return
     }
     setSaving(true)
@@ -99,19 +101,19 @@ export default function SourceFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? 'Editar source' : 'Nuevo source'}</DialogTitle>
+      <DialogTitle>{initial?.id ? t('sources.edit') : t('sources.create')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
-            label="Nombre"
+            label={t('common.name')}
             value={form.name || ''}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             fullWidth
           />
           <FormControl fullWidth>
-            <InputLabel>Tipo</InputLabel>
+            <InputLabel>{t('common.type')}</InputLabel>
             <Select
-              label="Tipo"
+              label={t('common.type')}
               value={form.type}
               onChange={(e) => setType(e.target.value as SourceType)}
             >
@@ -122,35 +124,35 @@ export default function SourceFormDialog({
             </Select>
           </FormControl>
           <TextField
-            label="Variable"
+            label={t('sources.variable')}
             value={form.variable || ''}
             onChange={(e) => setForm({ ...form, variable: e.target.value })}
-            helperText="Ej: $response"
+            helperText={t('sources.variableHint')}
             fullWidth
           />
           <TextField
-            label="Output (opcional)"
+            label={t('sources.output')}
             value={form.output || ''}
             onChange={(e) => setForm({ ...form, output: e.target.value || null })}
             fullWidth
           />
           <TextField
-            label="Input (JSON)"
+            label={t('sources.inputJson')}
             value={inputJson}
             onChange={(e) => setInputJson(e.target.value)}
             multiline
             minRows={6}
             error={Boolean(jsonError)}
-            helperText={jsonError || 'Campos según el tipo (url, method, creds, etc.)'}
+            helperText={jsonError || t('sources.inputHint')}
             fullWidth
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
-          Guardar
+          {t('common.save')}
         </Button>
       </DialogActions>
     </Dialog>

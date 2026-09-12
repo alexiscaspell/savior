@@ -1,4 +1,26 @@
 services:
+  - name: "healthcheck_template"
+    vars:
+      team: "platform"
+      alert_channel: "#ops"
+    sources:
+      - type: http_request
+        name: health_probe
+        variable: $response
+        input:
+          method: get
+          url: https://httpbin.org/status/503
+    rules:
+      - name: health_not_ok
+        source:
+          names:
+            - health_probe
+        expression: "$response.status_code != 200"
+        actions:
+          - name: suggest-health
+            type: suggest
+            result: "Healthcheck falló; revisá el servicio"
+
   - name: "pruebita"
     sources:
       - type: http_request
@@ -12,7 +34,6 @@ services:
         input:
           method: get
           url: https://httpbin.org/status/200
-
     rules:
       - name: alive_status
         source:
@@ -40,3 +61,21 @@ services:
           - name: suggest-something
             type: suggest
             result: "Ahhh el servicio no esta vivoo!"
+
+  - name: "api_consumidor"
+    labels:
+      - http-health
+    vars:
+      env: "staging"
+    sources:
+      - type: http_request
+        name: health_probe
+        variable: $response
+        input:
+          method: get
+          url: https://httpbin.org/status/503
+    rules: []
+
+labels:
+  - label: http-health
+    service_name: healthcheck_template

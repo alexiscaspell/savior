@@ -18,6 +18,7 @@ import type { Source } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import SourceFormDialog from '../components/SourceFormDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function SourcesPage() {
   const [items, setItems] = useState<Source[]>([])
@@ -25,6 +26,7 @@ export default function SourcesPage() {
   const [editing, setEditing] = useState<Source | null>(null)
   const [toDelete, setToDelete] = useState<Source | null>(null)
   const { showError, showSuccess } = useToast()
+  const { t } = usePrefs()
 
   const load = useCallback(async () => {
     try {
@@ -42,10 +44,10 @@ export default function SourcesPage() {
     try {
       if (source.id) {
         await sourcesApi.update(source.id, source)
-        showSuccess('Source actualizado')
+        showSuccess(t('sources.updated'))
       } else {
         await sourcesApi.create(source)
-        showSuccess('Source creado')
+        showSuccess(t('sources.created'))
       }
       await load()
     } catch (e) {
@@ -58,7 +60,7 @@ export default function SourcesPage() {
     if (!toDelete?.id) return
     try {
       await sourcesApi.remove(toDelete.id)
-      showSuccess('Source eliminado')
+      showSuccess(t('sources.deleted'))
       setToDelete(null)
       await load()
     } catch (e) {
@@ -69,23 +71,23 @@ export default function SourcesPage() {
   return (
     <>
       <PageHeader
-        title="Sources"
-        subtitle="Orígenes de datos HTTP, SSH o custom"
+        title={t('sources.title')}
+        subtitle={t('sources.subtitle')}
         onCreate={() => {
           setEditing(null)
           setDialogOpen(true)
         }}
-        createLabel="Nuevo source"
+        createLabel={t('sources.new')}
       />
       <TableContainer component={Paper} elevation={1}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Variable</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell>{t('common.id')}</TableCell>
+              <TableCell>{t('common.name')}</TableCell>
+              <TableCell>{t('common.type')}</TableCell>
+              <TableCell>{t('sources.variable')}</TableCell>
+              <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -100,7 +102,7 @@ export default function SourcesPage() {
                   <code>{s.variable}</code>
                 </TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Editar">
+                  <Tooltip title={t('common.edit')}>
                     <IconButton
                       onClick={() => {
                         setEditing(s)
@@ -110,7 +112,7 @@ export default function SourcesPage() {
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Eliminar">
+                  <Tooltip title={t('common.delete')}>
                     <IconButton color="error" onClick={() => setToDelete(s)}>
                       <DeleteIcon />
                     </IconButton>
@@ -121,7 +123,7 @@ export default function SourcesPage() {
             {items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} align="center">
-                  No hay sources
+                  {t('sources.empty')}
                 </TableCell>
               </TableRow>
             )}
@@ -137,8 +139,8 @@ export default function SourcesPage() {
       />
       <ConfirmDialog
         open={Boolean(toDelete)}
-        title="Eliminar source"
-        message={`¿Eliminar "${toDelete?.name || toDelete?.id}"?`}
+        title={t('sources.deleteTitle')}
+        message={t('sources.deleteMsg', { name: String(toDelete?.name || toDelete?.id || '') })}
         onClose={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />

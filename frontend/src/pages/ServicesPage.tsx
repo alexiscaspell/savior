@@ -21,6 +21,7 @@ import type { Service } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import ServiceFormDialog from '../components/ServiceFormDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { usePrefs } from '../i18n/PrefsContext'
 
 export default function ServicesPage() {
   const [items, setItems] = useState<Service[]>([])
@@ -29,6 +30,7 @@ export default function ServicesPage() {
   const [toDelete, setToDelete] = useState<Service | null>(null)
   const { showError, showSuccess } = useToast()
   const navigate = useNavigate()
+  const { t } = usePrefs()
 
   const load = useCallback(async () => {
     try {
@@ -46,10 +48,10 @@ export default function ServicesPage() {
     try {
       if (svc.id) {
         await servicesApi.update(svc.id, svc)
-        showSuccess('Service actualizado')
+        showSuccess(t('services.updated'))
       } else {
         await servicesApi.create(svc)
-        showSuccess('Service creado')
+        showSuccess(t('services.created'))
       }
       await load()
     } catch (e) {
@@ -62,7 +64,7 @@ export default function ServicesPage() {
     if (!toDelete?.id) return
     try {
       await servicesApi.remove(toDelete.id)
-      showSuccess('Service eliminado')
+      showSuccess(t('services.deleted'))
       setToDelete(null)
       await load()
     } catch (e) {
@@ -73,24 +75,24 @@ export default function ServicesPage() {
   return (
     <>
       <PageHeader
-        title="Services"
-        subtitle="Contenedores de sources, rules y variables"
+        title={t('services.title')}
+        subtitle={t('services.subtitle')}
         onCreate={() => {
           setEditing(null)
           setDialogOpen(true)
         }}
-        createLabel="Nuevo service"
+        createLabel={t('services.new')}
       />
       <TableContainer component={Paper} elevation={1}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nombre</TableCell>
-              <TableCell>Sources</TableCell>
-              <TableCell>Rules</TableCell>
-              <TableCell>Labels</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              <TableCell>{t('common.id')}</TableCell>
+              <TableCell>{t('common.name')}</TableCell>
+              <TableCell>{t('nav.sources')}</TableCell>
+              <TableCell>{t('nav.rules')}</TableCell>
+              <TableCell>{t('nav.labels')}</TableCell>
+              <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -108,12 +110,12 @@ export default function ServicesPage() {
                   </Stack>
                 </TableCell>
                 <TableCell align="right">
-                  <Tooltip title="Ver detalle">
+                  <Tooltip title={t('common.view')}>
                     <IconButton onClick={() => navigate(`/services/${s.id}`)}>
                       <VisibilityIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Editar">
+                  <Tooltip title={t('common.edit')}>
                     <IconButton
                       onClick={() => {
                         setEditing(s)
@@ -123,7 +125,7 @@ export default function ServicesPage() {
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Eliminar">
+                  <Tooltip title={t('common.delete')}>
                     <IconButton color="error" onClick={() => setToDelete(s)}>
                       <DeleteIcon />
                     </IconButton>
@@ -134,7 +136,7 @@ export default function ServicesPage() {
             {items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center">
-                  No hay services todavía
+                  {t('services.empty')}
                 </TableCell>
               </TableRow>
             )}
@@ -150,8 +152,8 @@ export default function ServicesPage() {
       />
       <ConfirmDialog
         open={Boolean(toDelete)}
-        title="Eliminar service"
-        message={`¿Eliminar "${toDelete?.name}"? Se desasociarán sources y rules.`}
+        title={t('services.deleteTitle')}
+        message={t('services.deleteMsg', { name: toDelete?.name || '' })}
         onClose={() => setToDelete(null)}
         onConfirm={confirmDelete}
       />

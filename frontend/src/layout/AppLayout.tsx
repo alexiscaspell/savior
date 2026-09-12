@@ -3,12 +3,14 @@ import {
   AppBar,
   Box,
   Drawer,
+  Fade,
   IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -20,19 +22,13 @@ import RuleIcon from '@mui/icons-material/Rule'
 import BoltIcon from '@mui/icons-material/Bolt'
 import LabelIcon from '@mui/icons-material/Label'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
+import TranslateIcon from '@mui/icons-material/Translate'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Fade } from '@mui/material'
+import { usePrefs } from '../i18n/PrefsContext'
 
 const DRAWER_WIDTH = 260
-
-const navItems = [
-  { path: '/services', label: 'Services', icon: <HubIcon /> },
-  { path: '/sources', label: 'Sources', icon: <CloudIcon /> },
-  { path: '/rules', label: 'Rules', icon: <RuleIcon /> },
-  { path: '/actions', label: 'Actions', icon: <BoltIcon /> },
-  { path: '/labels', label: 'Labels', icon: <LabelIcon /> },
-  { path: '/pray', label: 'Pray', icon: <VolunteerActivismIcon /> },
-]
 
 export default function AppLayout() {
   const theme = useTheme()
@@ -40,6 +36,17 @@ export default function AppLayout() {
   const [open, setOpen] = useState(!isMobile)
   const navigate = useNavigate()
   const location = useLocation()
+  const { mode, locale, toggleMode, toggleLocale, t } = usePrefs()
+  const isDark = mode === 'dark'
+
+  const navItems = [
+    { path: '/services', label: t('nav.services'), icon: <HubIcon /> },
+    { path: '/sources', label: t('nav.sources'), icon: <CloudIcon /> },
+    { path: '/rules', label: t('nav.rules'), icon: <RuleIcon /> },
+    { path: '/actions', label: t('nav.actions'), icon: <BoltIcon /> },
+    { path: '/labels', label: t('nav.labels'), icon: <LabelIcon /> },
+    { path: '/pray', label: t('nav.pray'), icon: <VolunteerActivismIcon /> },
+  ]
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', py: 2 }}>
@@ -55,7 +62,7 @@ export default function AppLayout() {
           SAVIOR
         </Typography>
         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)' }}>
-          Admin panel
+          {t('app.admin')}
         </Typography>
       </Box>
       <List sx={{ flex: 1 }}>
@@ -87,7 +94,7 @@ export default function AppLayout() {
         sx={{
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { md: `${DRAWER_WIDTH}px` },
-          bgcolor: 'rgba(255,255,255,0.72)',
+          bgcolor: isDark ? 'rgba(19, 32, 30, 0.82)' : 'rgba(255,255,255,0.72)',
           backdropFilter: 'blur(12px)',
           color: 'text.primary',
           borderBottom: '1px solid',
@@ -105,6 +112,23 @@ export default function AppLayout() {
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {navItems.find((n) => location.pathname.startsWith(n.path))?.label || 'SAVIOR'}
           </Typography>
+
+          <Tooltip title={locale === 'es' ? t('lang.toEn') : t('lang.toEs')}>
+            <IconButton onClick={toggleLocale} color="inherit" aria-label="toggle language">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <TranslateIcon fontSize="small" />
+                <Typography variant="caption" fontWeight={700} sx={{ minWidth: 18 }}>
+                  {locale.toUpperCase()}
+                </Typography>
+              </Box>
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title={isDark ? t('theme.toLight') : t('theme.toDark')}>
+            <IconButton onClick={toggleMode} color="inherit" aria-label="toggle theme">
+              {isDark ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
@@ -130,7 +154,7 @@ export default function AppLayout() {
           mt: 8,
         }}
       >
-        <Fade in key={location.pathname} timeout={280}>
+        <Fade in key={`${location.pathname}-${locale}-${mode}`} timeout={280}>
           <Box>
             <Outlet />
           </Box>

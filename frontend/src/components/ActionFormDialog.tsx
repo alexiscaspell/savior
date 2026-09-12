@@ -17,6 +17,7 @@ import {
 import type { TransitionProps } from '@mui/material/transitions'
 import { forwardRef, useEffect, useState } from 'react'
 import type { Action, ActionType } from '../types/models'
+import { usePrefs } from '../i18n/PrefsContext'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -62,6 +63,7 @@ export default function ActionFormDialog({
   const [inputJson, setInputJson] = useState('null')
   const [saving, setSaving] = useState(false)
   const [jsonError, setJsonError] = useState('')
+  const { t } = usePrefs()
 
   useEffect(() => {
     if (open) {
@@ -84,7 +86,7 @@ export default function ActionFormDialog({
       input = JSON.parse(inputJson)
       setJsonError('')
     } catch {
-      setJsonError('JSON de input inválido')
+      setJsonError(t('actions.invalidJson'))
       return
     }
     setSaving(true)
@@ -98,19 +100,19 @@ export default function ActionFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? 'Editar action' : 'Nueva action'}</DialogTitle>
+      <DialogTitle>{initial?.id ? t('actions.edit') : t('actions.create')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
-            label="Nombre"
+            label={t('common.name')}
             value={form.name || ''}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             fullWidth
           />
           <FormControl fullWidth>
-            <InputLabel>Tipo</InputLabel>
+            <InputLabel>{t('common.type')}</InputLabel>
             <Select
-              label="Tipo"
+              label={t('common.type')}
               value={form.type}
               onChange={(e) => setType(e.target.value as ActionType)}
             >
@@ -122,31 +124,31 @@ export default function ActionFormDialog({
             </Select>
           </FormControl>
           <TextField
-            label="Result"
+            label={t('actions.result')}
             value={form.result || ''}
             onChange={(e) => setForm({ ...form, result: e.target.value })}
-            helperText="Expresión o mensaje evaluado al aplicar la acción"
+            helperText={t('actions.resultHint')}
             fullWidth
             multiline
             minRows={2}
           />
           <TextField
-            label="Input (JSON)"
+            label={t('actions.inputJson')}
             value={inputJson}
             onChange={(e) => setInputJson(e.target.value)}
             multiline
             minRows={5}
             error={Boolean(jsonError)}
-            helperText={jsonError || 'null para suggest; objeto según tipo'}
+            helperText={jsonError || t('actions.inputHint')}
             fullWidth
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
-          Guardar
+          {t('common.save')}
         </Button>
       </DialogActions>
     </Dialog>
