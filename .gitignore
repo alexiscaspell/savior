@@ -137,5 +137,20 @@ fly.toml
 .metals/
 
 # Others
+/backend/files/data_hard.json
+/backend/files/data_hard.yml
 /files/data_hard.json
 /files/data_hard.yml
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Backend local
+backend/.venv/
+backend/*.db
+backend/.pytest_cache/
+backend/**/__pycache__/
+*.db
+

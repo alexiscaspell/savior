@@ -75,6 +75,7 @@ Para realizar esto se utilizo:
 
 * [![Docker][Docker]][Docker-url]
 * [![Python][Python]][Python-url]
+* React + Vite + MUI (admin web)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -83,47 +84,58 @@ Para realizar esto se utilizo:
 <!-- GETTING STARTED -->
 ## Empezando
 
-Para comenzar a usar el proyecto puede buildear la imagen localmente o utilizar la imagen ya buildeada [en la registry de dockerhub](https://hub.docker.com/repository/docker/alexiscaspell/savior/general)
+El repo está organizado en monorepo:
+
+```
+backend/   # FastAPI + SQLite
+frontend/  # Admin React + MUI
+```
 
 ### Prerequisitos
 
-Antes que nada necesitas:
-* Docker
+* Docker (opcional)
+* Python 3.8+ y Node 20+ (desarrollo local)
 
 ### Instalacion
 
-**Docker**
+**Docker Compose (API + UI)**
 
-_Para empezar tenes que tener [instalado docker](https://docs.docker.com/engine/install/)_
+```sh
+git clone https://github.com/alexiscaspell/savior.git
+cd savior
+docker compose up --build
+```
 
-1. Clona el repositorio
-   ```sh
-   git clone https://github.com/alexiscaspell/savior.git
-   ```
-2. Buildea la imagen
-   ```sh
-   cd savior && docker build -t savior .
-   ```
-3. Tambien podes usar la ultima version de la imagen ya construida
-   ```sh
-   docker pull alexiscaspell/savior:latest
+- API: http://localhost:5000/docs
+- Admin UI: http://localhost:3000
 
-**Python**
+**Desarrollo local**
 
-_En un entorno con [python instalado](https://realpython.com/installing-python/)_
+Backend:
 
-1. Clona el repositorio
-   ```sh
-   git clone https://github.com/alexiscaspell/savior.git
-   ```
-2. Instala dependencias
-   ```sh
-   cd savior && pip install requirements.txt
-   ```
-3. Finalmente ejecuta la app
-   ```sh
-   python main.py
-   ```
+```sh
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+
+Frontend (en otra terminal):
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+### Tests
+
+```sh
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -v
+```
+
+Cubre mock YAML, CRUD de services/sources y pray (incl. `source: null` y happy path con HTTP mockeado).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -131,6 +143,10 @@ _En un entorno con [python instalado](https://realpython.com/installing-python/)
 
 <!-- USAGE EXAMPLES -->
 ## Uso
+
+### Admin web
+
+Desde la UI podés dar de alta y editar **Services**, **Sources**, **Rules**, **Actions**, **Labels** y ejecutar un **Pray**.
 
 ### Configuracion
 
@@ -140,14 +156,13 @@ La configuracion se realiza mediante variables de ambiente, las cuales son:
 * **DIRECTORIO_LOGS**: Es el directorio donde se guardaran los logs (default= logs/).
 * **PYTHON_GUNICORN_WORKERS**: Cantidad de workers que se levantaran en uvicorn (default=1).
 * **PYTHON_GUNICORN_CONNECTIONS**: Cantidad de hilos que puede levantar cada worker (default=1000).
-* **MOCK**: Si esta en true, se cargaran los datos de ***files/data_hard.yml***.
+* **MOCK**: Si esta en true, se cargaran los datos de ***backend/files/data_hard.yml***.
+* **CORS_ORIGINS**: Orígenes permitidos para el frontend (default=`http://localhost:5173,http://localhost:3000`).
 
 ### Ejecucion
 
-Para usar la imagen simplemente ejecutar:
-
 ```sh
-docker run -p 5000:5000 alexiscaspell/savior:latest
+docker compose up --build
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

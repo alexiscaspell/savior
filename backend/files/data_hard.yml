@@ -1,0 +1,42 @@
+services:
+  - name: "pruebita"
+    sources:
+      - type: http_request
+        variable: $response
+        input:
+          method: get
+          url: https://httpbin.org/status/503
+      - type: http_request
+        name: input_alive
+        variable: $response_alive
+        input:
+          method: get
+          url: https://httpbin.org/status/200
+
+    rules:
+      - name: alive_status
+        source:
+          variables:
+            - $response
+        expression: "$response.status_code != 200"
+        actions:
+          - name: suggest-something
+            type: suggest
+            result: "El endpoint principal respondió mal; probá /alive"
+          - name: check-alive
+            type: http_action
+            input:
+              url: https://httpbin.org/status/200
+              method: get
+            result: "f'Alive check: {$response.status_code}'"
+      - name: alive_status_posta
+        source:
+          names:
+            - input_alive
+          renames:
+            response_alive: response
+        expression: "$response.status_code != 200"
+        actions:
+          - name: suggest-something
+            type: suggest
+            result: "Ahhh el servicio no esta vivoo!"

@@ -1,20 +1,18 @@
 version: "3.7"
 
 services:
-  savior:
-    # network_mode: bridge
-    image: savior
-    build: ./
-    network_mode: host
+  backend:
+    image: savior-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
     environment:
-      # GUNICORN
+      - SAVIOR_PYTHON_HOST=0.0.0.0
       - SAVIOR_PYTHON_PORT=5000
-
-      # LOGS
       - NIVEL_LOGS=INFO
       - DIRECTORIO_LOGS=logs/
-
-      # APP
       - POOL_SIZE_DEFAULT=50
       - MAX_OVERFLOW_DEFAULT=100
       - DIRECTORY_FILES=files/
@@ -23,11 +21,19 @@ services:
       - SAVIOR_DATABASE_NAME=savior_db
       - SAVIOR_ENTITY_DIR=app/repositories/entity/
       - SAVIOR_AUTOCREATE_DB=true
-
+      - SAVIOR_CORS_ORIGINS=http://localhost:5173,http://localhost:3000
     restart: always
     volumes:
       - ./logs:/usr/src/logs
-      - ./files:/usr/src/files
-      
-    # ports:
-    #   - 5000:5000
+      - ./backend/files:/usr/src/files
+
+  frontend:
+    image: savior-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always
