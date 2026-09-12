@@ -484,8 +484,8 @@ Link del proyecto: [https://github.com/alexiscaspell/savior](https://github.com/
 [license-url]: https://github.com/alexiscaspell/savior/blob/master/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/alexis-taberna-824690147
-[product-screenshot]: https://github.com/alexiscaspell/savior/blob/main/img/screenshot1.png
-[Python]: https://github.com/alexiscaspell/savior/blob/main/img/python.ico
-[Docker]: https://github.com/alexiscaspell/savior/blob/main/img/logodocker.ico
+[product-screenshot]: img/screenshot1.png
+[Python]: img/python.png
+[Docker]: img/logodocker.ico
 [Python-url]: https://docs.python.org/3/
 [Docker-url]: https://www.docker.com/
