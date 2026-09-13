@@ -51,6 +51,7 @@
         <li><a href="#rule">Rule</a></li>
         <li><a href="#preconditions">Preconditions</a></li>
         <li><a href="#action-y-consequence">Action y Consequence</a></li>
+        <li><a href="#service-template">Service Template</a></li>
         <li><a href="#label">Label</a></li>
         <li><a href="#pray">Pray</a></li>
         <li><a href="#ejemplo-completo">Ejemplo completo</a></li>
@@ -101,33 +102,37 @@ Para realizar esto se utilizo:
 SAVIOR observa servicios, evalúa reglas y dispara acciones (consecuencias) cuando algo anda mal.
 
 ```
-Service
+Service (consumer)
  ├── vars
- ├── labels  ──────────────► Label (plantilla → otro Service)
- ├── sources[]               (cómo obtener datos)
- └── rules[]
-      ├── expression
-      ├── source (qué sources usa)
-      ├── preconditions
-      └── actions[]  ──────► al cumplirse → Consequence[]
+ ├── labels[]  ────────────► Label ──(opcional)──► Service Template
+ ├── sources[]                 (cómo obtener datos)
+ └── rules[]                  (+ rules heredadas del template)
+
+Service Template
+ ├── vars                      (heredables)
+ ├── sources[]                 (referencia / prueba; no se heredan)
+ └── rules[]                  (heredables)
 ```
 
 ### Visión general
 
 | Concepto | Qué es en una frase |
 |----------|---------------------|
-| **Service** | El sistema/API que querés cuidar |
+| **Service** | El sistema/API que querés cuidar (consumer) |
+| **Service Template** | Service “modelo” con vars/rules reutilizables |
 | **Source** | De dónde se obtienen datos (HTTP, SSH, etc.) |
 | **Rule** | Condición a evaluar (`expression`) |
 | **Preconditions** | Rules que deben cumplirse antes de evaluar otra |
 | **Action** | Qué hacer si la rule se cumple |
 | **Consequence** | Resultado concreto de una action al ejecutar un Pray |
-| **Label** | Plantilla reutilizable de vars/rules entre services |
+| **Label** | Tag reutilizable; opcionalmente apunta a un Service Template |
 | **Pray** | “Rezá” por un service: evalúa rules y aplica actions |
 
 ### Service
 
-Un **service** es el contenedor principal. Agrupa sources, rules, variables (`vars`) y labels.
+Un **service** (consumer) es el contenedor principal que querés monitorear. Agrupa sources, rules, variables (`vars`) y labels.
+
+En la UI, los consumers viven en **Services**; las plantillas, en **Service Templates**.
 
 ```yaml
 - name: "pruebita"
@@ -138,7 +143,7 @@ Un **service** es el contenedor principal. Agrupa sources, rules, variables (`va
   rules: [...]
 ```
 
-Al hacer un **Pray**, SAVIOR carga el service completo (incluyendo rules heredadas por labels) y recorre sus rules en orden (respetando `preconditions`).
+Al hacer un **Pray**, SAVIOR carga el service completo (incluyendo rules heredadas por labels con plantilla) y recorre sus rules en orden (respetando `preconditions`).
 
 ### Source
 
@@ -291,23 +296,78 @@ Respuesta típica de un Pray (consequences):
 }
 ```
 
-### Label
+### Service Template
 
-Un **label** es una **plantilla**: asocia un nombre (ej. `http-health`) a un service “modelo”.  
-Otro service que declare ese label en su lista `labels` **hereda** al cargarse:
+Un **Service Template** es un service pensado como **plantilla**: define `vars` y `rules` que otros services pueden reutilizar.
 
-1. las `vars` del template (las propias del service pisan si hay conflicto)
-2. las `rules` del template que todavía no tenga
+En la UI vive en la sección **Service Templates** (separada de **Services**). Internamente es un service marcado como plantilla (`vars.__template: true`) y/o referenciado por un label.
 
-No hereda sources: el consumidor debe tener sus propios sources (con los mismos `name`/`variable` que esperan las rules de la plantilla).
+Sirve para:
 
-Alta de la asociación (YAML de seed):
+- no copiar la misma rule en muchos services
+- centralizar defaults (team, canal de alertas, etc.)
+- versionar el “cómo chequear X” en un solo lugar
+
+Ejemplo de plantilla (seed):
 
 ```yaml
+- name: "healthcheck_template"
+  vars:
+    __template: true
+    team: "platform"
+    alert_channel: "#ops"
+  sources:
+    - type: http_request
+      name: health_probe
+      variable: $response
+      input:
+        method: get
+        url: https://httpbin.org/status/503
+  rules:
+    - name: health_not_ok
+      source:
+        names:
+          - health_probe
+      expression: "$response.status_code != 200"
+      actions:
+        - name: suggest-health
+          type: suggest
+          result: "Healthcheck falló; revisá el servicio"
+```
+
+La plantilla sola **no** se aplica a nadie: hace falta un **Label** que la apunte, y services consumidores que declaren ese label.
+
+### Label
+
+Un **label** es un **tag** con nombre (ej. `http-health`, `node`). Tiene dos usos:
+
+1. **Solo tag** — agrupa/marca services (sin herencia).
+2. **Con Service Template** — además de tag, al cargar un service que lo declare, **hereda** de la plantilla:
+   - las `vars` del template (las propias del service pisan si hay conflicto)
+   - las `rules` del template que todavía no tenga  
+   - **no** hereda `sources`: el consumidor debe tener los suyos (mismos `name` / `variable` que esperan las rules de la plantilla)
+
+Flujo típico:
+
+```
+Service Template  ←── Label (opcional)  ←── Service.labels[]
+   (vars/rules)         (tag / puente)        (consumers)
+```
+
+Alta en YAML de seed:
+
+```yaml
+# Solo tag (sin plantilla)
+labels:
+  - label: node
+
+# Tag + plantilla
 labels:
   - label: http-health
     service_name: healthcheck_template
 ```
+
+Desde la UI: **Labels** → creás el label y, si querés herencia, elegís un **Service Template**.
 
 Service consumidor:
 
@@ -326,6 +386,8 @@ Service consumidor:
         url: https://httpbin.org/status/503
   rules: []   # hereda health_not_ok del template
 ```
+
+Otro patrón común: muchos nodos con el mismo tag, por ejemplo `labels: [node]` en services llamados `node-{nombre}`. Si ese label no tiene plantilla, solo clasifica; si tiene plantilla, todos heredan la misma lógica.
 
 ### Pray
 
@@ -355,9 +417,10 @@ También lo podés disparar desde la UI en la pantalla **Pray**.
 
 Flujo mental con el seed (`backend/files/data_hard.yml`):
 
-1. `healthcheck_template` define la rule `health_not_ok` y el label `http-health` apunta a él.
-2. `api_consumidor` solo declara `labels: [http-health]` + un source `health_probe`.
-3. Al hacer Pray sobre `api_consumidor`:
+1. `healthcheck_template` (Service Template) define la rule `health_not_ok`.
+2. El label `http-health` apunta a esa plantilla.
+3. `api_consumidor` declara `labels: [http-health]` + un source `health_probe`.
+4. Al hacer Pray sobre `api_consumidor`:
    - hereda `health_not_ok`
    - consulta el source
    - si `status_code != 200`, dispara `suggest-health`
@@ -463,8 +526,16 @@ export DOCKER_HUB_PERSONAL_TOKEN=...
 
 ### Admin web
 
-Desde la UI podés dar de alta y editar **Services**, **Sources**, **Rules**, **Actions**, **Labels** y ejecutar un **Pray**.  
+Desde la UI podés dar de alta y editar **Services**, **Service Templates**, **Sources**, **Rules**, **Actions**, **Labels** y ejecutar un **Pray**.  
 Ver la sección [Conceptos](#conceptos) para el significado de cada uno.
+
+Resumen de pantallas relacionadas con herencia:
+
+| Pantalla | Rol |
+|----------|-----|
+| **Services** | Consumers (instancias a cuidar) |
+| **Service Templates** | Plantillas de vars/rules |
+| **Labels** | Tags; opcionalmente enlazan un template |
 
 También hay toggle de **tema claro/oscuro** e idioma **ES/EN**.
 
