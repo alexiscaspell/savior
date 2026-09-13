@@ -1,5 +1,7 @@
 import {
+  Autocomplete,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -11,6 +13,7 @@ import {
 import type { TransitionProps } from '@mui/material/transitions'
 import { forwardRef, useEffect, useState } from 'react'
 import type { Service } from '../types/models'
+import { labelsApi } from '../api/labels'
 import { usePrefs } from '../i18n/PrefsContext'
 
 const Transition = forwardRef(function Transition(
@@ -34,7 +37,8 @@ export default function ServiceFormDialog({
   const { t } = usePrefs()
   const [name, setName] = useState('')
   const [varsJson, setVarsJson] = useState('{}')
-  const [labels, setLabels] = useState('')
+  const [labels, setLabels] = useState<string[]>([])
+  const [labelOptions, setLabelOptions] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,8 +46,15 @@ export default function ServiceFormDialog({
     if (open) {
       setName(initial?.name || '')
       setVarsJson(JSON.stringify(initial?.vars || {}, null, 2))
-      setLabels((initial?.labels || []).join(', '))
+      setLabels([...(initial?.labels || [])])
       setError('')
+      labelsApi
+        .list()
+        .then((items) => {
+          const names = [...new Set((items || []).map((l) => l.label).filter(Boolean))]
+          setLabelOptions(names)
+        })
+        .catch(() => setLabelOptions([]))
     }
   }, [open, initial])
 
@@ -61,10 +72,7 @@ export default function ServiceFormDialog({
         id: initial?.id,
         name,
         vars,
-        labels: labels
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        labels: labels.map((s) => s.trim()).filter(Boolean),
         sources: initial?.sources || [],
         rules: initial?.rules || [],
       })
@@ -76,7 +84,7 @@ export default function ServiceFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? t('services.edit') : t('services.create')}</DialogTitle>
+      <DialogTitle>{initial?.id ? t('services.view') : t('services.create')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
@@ -97,12 +105,34 @@ export default function ServiceFormDialog({
             fullWidth
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
-          <TextField
-            label={t('services.labelsField')}
+          <Autocomplete
+            multiple
+            freeSolo
+            options={labelOptions}
             value={labels}
-            onChange={(e) => setLabels(e.target.value)}
-            helperText={t('services.labelsHint')}
-            fullWidth
+            onChange={(_, value) => setLabels(value)}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index })
+                return (
+                  <Chip
+                    key={key}
+                    label={option}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                    {...tagProps}
+                  />
+                )
+              })
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={t('services.labelsField')}
+                helperText={t('services.labelsHint')}
+              />
+            )}
           />
         </Stack>
       </DialogContent>

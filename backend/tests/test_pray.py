@@ -79,3 +79,18 @@ def test_pray_by_service_name(client, sample_yaml, mock_http):
 
     assert response.status_code == 200
     assert response.json()["service"] == "pruebita"
+
+
+def test_pray_dry_run_skips_consequences(client, sample_yaml, mock_http):
+    service_id = _seed(client, sample_yaml)
+
+    response = client.post(
+        "/api/v1/savior/pray",
+        json={"service_id": service_id, "dry_run": True, "params": {}},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "alive_status" in {r["name"] for r in body["rules"]}
+    for rule in body["rules"]:
+        assert rule["consequences"] == []

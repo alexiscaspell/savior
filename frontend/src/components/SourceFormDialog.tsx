@@ -13,9 +13,10 @@ import {
   TextField,
 } from '@mui/material'
 import type { TransitionProps } from '@mui/material/transitions'
-import { forwardRef, useEffect, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useState } from 'react'
 import type { Source, SourceType } from '../types/models'
 import { usePrefs } from '../i18n/PrefsContext'
+import CodeEditor from './CodeEditor'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -49,6 +50,59 @@ function defaultInput(type: SourceType): Record<string, unknown> {
   }
 }
 
+function inputSchema(type: SourceType): object {
+  switch (type) {
+    case 'http_request':
+    case 'http_log':
+      return {
+        type: 'object',
+        properties: {
+          method: {
+            type: 'string',
+            enum: ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'],
+            description: 'HTTP method',
+          },
+          url: { type: 'string', description: 'Request URL' },
+          headers: {
+            type: 'object',
+            additionalProperties: { type: 'string' },
+            description: 'HTTP headers',
+          },
+          body: {
+            description: 'Request body',
+            anyOf: [{ type: 'object' }, { type: 'string' }, { type: 'null' }],
+          },
+          retry: { anyOf: [{ type: 'integer', minimum: 0 }, { type: 'null' }] },
+          retry_sleep: { type: 'number', minimum: 0 },
+        },
+        required: ['method', 'url'],
+        additionalProperties: true,
+      }
+    case 'ssh_log':
+      return {
+        type: 'object',
+        properties: {
+          filepath: { type: 'string', description: 'Remote log file path' },
+          ip: { type: 'string', description: 'Host IP or hostname' },
+          port: { type: 'integer', description: 'SSH port', default: 22 },
+          creds: {
+            type: 'object',
+            properties: {
+              user: { type: 'string' },
+              password: { type: 'string' },
+              key_file: { type: 'string' },
+            },
+            additionalProperties: false,
+          },
+        },
+        required: ['filepath', 'ip'],
+        additionalProperties: true,
+      }
+    default:
+      return { type: 'object', additionalProperties: true }
+  }
+}
+
 export default function SourceFormDialog({
   open,
   initial,
@@ -62,6 +116,7 @@ export default function SourceFormDialog({
 }) {
   const [form, setForm] = useState<Source>(emptySource())
   const [inputJson, setInputJson] = useState('{}')
+  const [outputExpr, setOutputExpr] = useState('')
   const [saving, setSaving] = useState(false)
   const [jsonError, setJsonError] = useState('')
   const { t } = usePrefs()
@@ -71,6 +126,7 @@ export default function SourceFormDialog({
       const base = initial ? { ...initial, input: initial.input || {} } : emptySource()
       setForm(base)
       setInputJson(JSON.stringify(base.input || {}, null, 2))
+      setOutputExpr(base.output || '')
       setJsonError('')
     }
   }, [open, initial])
@@ -80,6 +136,8 @@ export default function SourceFormDialog({
     setForm((f) => ({ ...f, type, input }))
     setInputJson(JSON.stringify(input, null, 2))
   }
+
+  const schema = useMemo(() => inputSchema(form.type), [form.type])
 
   const handleSave = async () => {
     let input: Record<string, unknown>
@@ -92,7 +150,12 @@ export default function SourceFormDialog({
     }
     setSaving(true)
     try {
-      await onSave({ ...form, input, variable: form.variable || '$response' })
+      await onSave({
+        ...form,
+        input,
+        variable: form.variable || '$response',
+        output: outputExpr.trim() || null,
+      })
       onClose()
     } finally {
       setSaving(false)
@@ -100,7 +163,7 @@ export default function SourceFormDialog({
   }
 
   return (
-    <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="md">
       <DialogTitle>{initial?.id ? t('sources.edit') : t('sources.create')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -130,22 +193,25 @@ export default function SourceFormDialog({
             helperText={t('sources.variableHint')}
             fullWidth
           />
-          <TextField
-            label={t('sources.output')}
-            value={form.output || ''}
-            onChange={(e) => setForm({ ...form, output: e.target.value || null })}
-            fullWidth
-          />
-          <TextField
+          <CodeEditor
             label={t('sources.inputJson')}
             value={inputJson}
-            onChange={(e) => setInputJson(e.target.value)}
-            multiline
-            minRows={6}
+            onChange={setInputJson}
+            language="json"
+            height={220}
+            path={`inmemory://source-input-${form.type}.json`}
+            schema={schema}
             error={Boolean(jsonError)}
             helperText={jsonError || t('sources.inputHint')}
-            fullWidth
-            InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
+          />
+          <CodeEditor
+            label={t('sources.output')}
+            value={outputExpr}
+            onChange={setOutputExpr}
+            language="python"
+            height={120}
+            path="inmemory://source-output.py"
+            helperText={t('sources.outputHint')}
           />
         </Stack>
       </DialogContent>

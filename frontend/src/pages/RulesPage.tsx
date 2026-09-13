@@ -14,7 +14,8 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { rulesApi } from '../api/rules'
 import { actionsApi } from '../api/actions'
-import type { Action, Rule } from '../types/models'
+import { sourcesApi } from '../api/sources'
+import type { Action, Rule, Source } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import RuleFormDialog from '../components/RuleFormDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -23,6 +24,7 @@ import { usePrefs } from '../i18n/PrefsContext'
 export default function RulesPage() {
   const [items, setItems] = useState<Rule[]>([])
   const [actions, setActions] = useState<Action[]>([])
+  const [sources, setSources] = useState<Source[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Rule | null>(null)
   const [toDelete, setToDelete] = useState<Rule | null>(null)
@@ -31,9 +33,14 @@ export default function RulesPage() {
 
   const load = useCallback(async () => {
     try {
-      const [rules, acts] = await Promise.all([rulesApi.list(), actionsApi.list()])
+      const [rules, acts, srcs] = await Promise.all([
+        rulesApi.list(),
+        actionsApi.list(),
+        sourcesApi.list(),
+      ])
       setItems(rules)
       setActions(acts)
+      setSources(srcs)
     } catch (e) {
       showError((e as Error).message)
     }
@@ -136,6 +143,8 @@ export default function RulesPage() {
         open={dialogOpen}
         initial={editing}
         availableActions={actions}
+        availableSources={sources}
+        availableRules={items}
         onClose={() => setDialogOpen(false)}
         onSave={save}
       />

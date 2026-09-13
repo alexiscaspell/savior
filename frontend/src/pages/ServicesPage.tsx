@@ -111,17 +111,17 @@ export default function ServicesPage() {
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title={t('common.view')}>
-                    <IconButton onClick={() => navigate(`/services/${s.id}`)}>
-                      <VisibilityIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title={t('common.edit')}>
                     <IconButton
                       onClick={() => {
                         setEditing(s)
                         setDialogOpen(true)
                       }}
                     >
+                      <VisibilityIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t('common.edit')}>
+                    <IconButton onClick={() => navigate(`/services/${s.id}`)}>
                       <EditIcon />
                     </IconButton>
                   </Tooltip>

@@ -52,6 +52,7 @@ export interface Pray {
   service_name?: string | null
   source?: string | null
   fast?: boolean
+  dry_run?: boolean
   params?: Record<string, unknown>
 }
 

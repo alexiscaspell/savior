@@ -49,6 +49,7 @@
         <li><a href="#service">Service</a></li>
         <li><a href="#source">Source</a></li>
         <li><a href="#rule">Rule</a></li>
+        <li><a href="#preconditions">Preconditions</a></li>
         <li><a href="#action-y-consequence">Action y Consequence</a></li>
         <li><a href="#label">Label</a></li>
         <li><a href="#pray">Pray</a></li>
@@ -118,6 +119,7 @@ Service
 | **Service** | El sistema/API que querés cuidar |
 | **Source** | De dónde se obtienen datos (HTTP, SSH, etc.) |
 | **Rule** | Condición a evaluar (`expression`) |
+| **Preconditions** | Rules que deben cumplirse antes de evaluar otra |
 | **Action** | Qué hacer si la rule se cumple |
 | **Consequence** | Resultado concreto de una action al ejecutar un Pray |
 | **Label** | Plantilla reutilizable de vars/rules entre services |
@@ -196,6 +198,48 @@ Ejemplo:
       type: suggest
       result: "El endpoint principal respondió mal; probá /alive"
 ```
+
+### Preconditions
+
+Las **preconditions** son dependencias entre rules: una rule solo evalúa su `expression` (y puede disparar actions) si **todas** las rules listadas en `preconditions` ya dieron `true` en el mismo Pray.
+
+Sirven para encadenar lógica y evitar trabajo inútil. Ejemplo típico:
+
+1. `service_down` → ¿el servicio no responde 200?
+2. `suggest_restart` con `preconditions: [service_down]` → solo sugerís reiniciar **si** ya confirmaste que está caído
+
+Comportamiento:
+
+- Si alguna precondition falló (o no se cumplió), la rule actual se marca en `false` **sin** evaluar su `expression` ni ejecutar sus actions.
+- Al ordenar rules de un service, primero se evalúan las que no tienen preconditions; después las que dependen de ellas (cuando esas dependencias ya están resueltas en el orden).
+
+Ejemplo:
+
+```yaml
+- name: service_down
+  source:
+    variables:
+      - $response
+  expression: "$response.status_code != 200"
+  actions:
+    - name: suggest-check
+      type: suggest
+      result: "El servicio no responde OK"
+
+- name: suggest_restart
+  preconditions:
+    - service_down
+  source:
+    variables:
+      - $response
+  expression: "True"   # ya sabemos que está down; solo encadenamos la action
+  actions:
+    - name: suggest-restart
+      type: suggest
+      result: "Considerá reiniciar el servicio"
+```
+
+En este caso, si `service_down` es `false` (el servicio está OK), `suggest_restart` no corre.
 
 ### Action y Consequence
 

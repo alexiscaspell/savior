@@ -72,7 +72,7 @@ export default function ServiceDetailPage() {
         <Box>
           <Typography variant="h4">{service.name}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {t('common.id')} {service.id}
+            {t('services.edit')} · {t('common.id')} {service.id}
           </Typography>
         </Box>
       </Stack>

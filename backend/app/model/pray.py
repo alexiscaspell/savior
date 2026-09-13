@@ -7,6 +7,7 @@ class Pray(AppModel):
     service_name: Optional[str] = None
     source: Optional[str] = None
     fast: bool = False
+    dry_run: bool = False
     params: Dict = {}
 
 class PrayResponse(AppModel):

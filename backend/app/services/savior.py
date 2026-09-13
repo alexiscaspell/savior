@@ -127,14 +127,17 @@ def helpme(pray:Pray):
     rule_failed_counter = 0
 
     for rule in rules:
-        if pray.source and hasattr(rule.source, 'name') and pray.source != rule.source.name:
+        if pray.source and not _rule_uses_source(rule, service, pray.source):
             continue
 
         rule.context = context
 
         try:
             if rule.satisfies():
-                result = rule.apply_actions()
+                if pray.dry_run:
+                    result = ResultRule.from_dict({"name": rule.name, "consequences": []})
+                else:
+                    result = rule.apply_actions()
 
                 response.rules.append(result)
 
@@ -149,6 +152,18 @@ def helpme(pray:Pray):
         raise FailedPrayException(service.name)
             
     return response
+
+
+def _rule_uses_source(rule, service, source_name: str) -> bool:
+    names = getattr(rule.source, "names", None) or []
+    if source_name in names:
+        return True
+
+    variables = getattr(rule.source, "variables", None) or []
+    return any(
+        s.name == source_name and s.variable in variables
+        for s in (service.sources or [])
+    )
 
 def eval_service_source(service_id:int,source_id:int):
     service = get_service_by_id(service_id)
