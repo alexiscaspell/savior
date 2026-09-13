@@ -139,7 +139,10 @@ const es: Dict = {
   'labels.viewServices': 'Ver services con este label',
   'labels.noServices': 'Ningún service usa este label',
   'labels.created': 'Label creado',
+  'labels.updated': 'Label actualizado',
   'labels.deleted': 'Label eliminado',
+  'labels.editTitle': 'Editar label',
+  'labels.editTemplate': 'Cambiar plantilla',
   'labels.deleteTitle': 'Eliminar label',
   'labels.deleteMsg': '¿Eliminar label "{name}" ({id})?',
 
@@ -314,7 +317,10 @@ const en: Dict = {
   'labels.viewServices': 'View services with this label',
   'labels.noServices': 'No service uses this label',
   'labels.created': 'Label created',
+  'labels.updated': 'Label updated',
   'labels.deleted': 'Label deleted',
+  'labels.editTitle': 'Edit label',
+  'labels.editTemplate': 'Change template',
   'labels.deleteTitle': 'Delete label',
   'labels.deleteMsg': 'Delete label "{name}" ({id})?',
 

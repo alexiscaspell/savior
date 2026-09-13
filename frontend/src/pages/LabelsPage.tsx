@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
@@ -9,6 +13,7 @@ import {
   MenuItem,
   Paper,
   Select,
+  Slide,
   Stack,
   Table,
   TableBody,
@@ -20,8 +25,11 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import type { TransitionProps } from '@mui/material/transitions'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditIcon from '@mui/icons-material/Edit'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import { forwardRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { labelsApi } from '../api/labels'
 import { servicesApi } from '../api/services'
@@ -31,12 +39,22 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { usePrefs } from '../i18n/PrefsContext'
 import { isTemplateService, templateIdsFromLabels } from '../utils/templates'
 
+const Transition = forwardRef(function Transition(
+  props: TransitionProps & { children: React.ReactElement },
+  ref: React.Ref<unknown>,
+) {
+  return <Slide direction="up" ref={ref} {...props} />
+})
+
 export default function LabelsPage() {
   const [items, setItems] = useState<ServiceLabel[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [label, setLabel] = useState('')
   const [serviceId, setServiceId] = useState<number | '' | 'none'>('none')
   const [toDelete, setToDelete] = useState<ServiceLabel | null>(null)
+  const [editing, setEditing] = useState<ServiceLabel | null>(null)
+  const [editTemplateId, setEditTemplateId] = useState<number | '' | 'none'>('none')
+  const [savingEdit, setSavingEdit] = useState(false)
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuConsumers, setMenuConsumers] = useState<Service[]>([])
   const { showError, showSuccess } = useToast()
@@ -89,6 +107,31 @@ export default function LabelsPage() {
       await load()
     } catch (e) {
       showError((e as Error).message)
+    }
+  }
+
+  const openEdit = (item: ServiceLabel) => {
+    setEditing(item)
+    setEditTemplateId(item.service?.id != null ? item.service.id : 'none')
+  }
+
+  const saveEdit = async () => {
+    if (!editing?.label) return
+    setSavingEdit(true)
+    try {
+      const payload: ServiceLabel = { label: editing.label, service: null }
+      if (editTemplateId !== 'none' && editTemplateId !== '') {
+        const tpl = templateServices.find((s) => s.id === editTemplateId)
+        payload.service = { id: editTemplateId as number, name: tpl?.name || '' }
+      }
+      await labelsApi.update(payload)
+      showSuccess(t('labels.updated'))
+      setEditing(null)
+      await load()
+    } catch (e) {
+      showError((e as Error).message)
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -196,6 +239,11 @@ export default function LabelsPage() {
                     </Stack>
                   </TableCell>
                   <TableCell align="right">
+                    <Tooltip title={t('labels.editTemplate')}>
+                      <IconButton onClick={() => openEdit(item)}>
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title={t('common.delete')}>
                       <IconButton color="error" onClick={() => setToDelete(item)}>
                         <DeleteIcon />
@@ -215,6 +263,42 @@ export default function LabelsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        TransitionComponent={Transition}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{t('labels.editTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label={t('labels.label')} value={editing?.label || ''} fullWidth disabled />
+            <FormControl fullWidth>
+              <InputLabel>{t('labels.templateService')}</InputLabel>
+              <Select
+                label={t('labels.templateService')}
+                value={editTemplateId}
+                onChange={(e) => setEditTemplateId(e.target.value as number | 'none')}
+              >
+                <MenuItem value="none">{t('labels.noTemplate')}</MenuItem>
+                {templateServices.map((s) => (
+                  <MenuItem key={s.id} value={s.id!}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setEditing(null)}>{t('common.cancel')}</Button>
+          <Button variant="contained" onClick={saveEdit} disabled={savingEdit}>
+            {t('common.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Menu
         anchorEl={menuAnchor}

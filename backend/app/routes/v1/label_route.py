@@ -27,6 +27,18 @@ def create_label(label:ServiceLabel):
     service_id = label.service.id if label.service is not None else None
     return {"label": label.label, "service_id": service_id}
 
+@blue_print.put('', response_model=dict)
+def update_label(label:ServiceLabel):
+    """Update a label's optional template service binding."""
+    if not label.label:
+        raise AppException(400, "label es requerido")
+    existing = savior.get_all_labels()
+    if not any(l.label == label.label for l in existing):
+        raise AppException(404, f"Label '{label.label}' no existe")
+    savior.add_label(label)
+    service_id = label.service.id if label.service is not None else None
+    return {"label": label.label, "service_id": service_id}
+
 @blue_print.delete('')
 def delete_label_by_name(label: str):
     """Delete a catalog label by name (works for tag-only and templated labels)."""

@@ -5,7 +5,7 @@ from app.model.source import Source
 
 class Service(AppModel):
     id: Optional[int] = None
-    name: str
+    name: str = ""
     rules: List[Rule] = []
     sources: List[Source] = []
     vars: Dict = {}

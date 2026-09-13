@@ -128,6 +128,33 @@ def test_tag_only_label_without_template(client):
     assert pray.json()["rules"] == []
 
 
+def test_update_label_template(client):
+    tpl_a = client.post(
+        "/api/v1/services",
+        json={"name": "tpl-a", "vars": {"__template": True, "wh": "a"}, "labels": [], "sources": [], "rules": []},
+    ).json()
+    tpl_b = client.post(
+        "/api/v1/services",
+        json={"name": "tpl-b", "vars": {"__template": True, "wh": "b"}, "labels": [], "sources": [], "rules": []},
+    ).json()
+
+    created = client.post("/api/v1/labels", json={"label": "switchable", "service": {"id": tpl_a}})
+    assert created.status_code == 200
+    assert created.json()["service_id"] == tpl_a
+
+    updated = client.put("/api/v1/labels", json={"label": "switchable", "service": {"id": tpl_b}})
+    assert updated.status_code == 200
+    assert updated.json()["service_id"] == tpl_b
+
+    labels = client.get("/api/v1/labels").json()
+    row = next(l for l in labels if l["label"] == "switchable")
+    assert row["service"]["id"] == tpl_b
+
+    cleared = client.put("/api/v1/labels", json={"label": "switchable", "service": None})
+    assert cleared.status_code == 200
+    assert cleared.json()["service_id"] is None
+
+
 def test_pray_uses_inherited_rule(client, labels_yaml, mock_http):
     savior.mock(labels_yaml)
     consumer = next(s for s in client.get("/api/v1/services").json() if s["name"] == "api_consumidor")
