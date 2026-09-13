@@ -1,6 +1,7 @@
 services:
   - name: "healthcheck_template"
     vars:
+      __template: true
       team: "platform"
       alert_channel: "#ops"
     sources:

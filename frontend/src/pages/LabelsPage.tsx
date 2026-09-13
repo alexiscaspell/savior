@@ -29,6 +29,7 @@ import type { Service, ServiceLabel } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { usePrefs } from '../i18n/PrefsContext'
+import { isTemplateService, templateIdsFromLabels } from '../utils/templates'
 
 export default function LabelsPage() {
   const [items, setItems] = useState<ServiceLabel[]>([])
@@ -67,6 +68,12 @@ export default function LabelsPage() {
     }
     return map
   }, [services])
+
+  const templateServices = useMemo(() => {
+    const ids = templateIdsFromLabels(items)
+    const templates = services.filter((s) => isTemplateService(s, ids))
+    return templates.length > 0 ? templates : services
+  }, [services, items])
 
   const create = async () => {
     if (!label) return
@@ -127,7 +134,7 @@ export default function LabelsPage() {
               onChange={(e) => setServiceId(e.target.value as number | 'none')}
             >
               <MenuItem value="none">{t('labels.noTemplate')}</MenuItem>
-              {services.map((s) => (
+              {templateServices.map((s) => (
                 <MenuItem key={s.id} value={s.id!}>
                   {s.name}
                 </MenuItem>

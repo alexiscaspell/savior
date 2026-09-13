@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Chip,
   IconButton,
@@ -17,14 +17,17 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useNavigate } from 'react-router-dom'
 import { servicesApi } from '../api/services'
-import type { Service } from '../types/models'
+import { labelsApi } from '../api/labels'
+import type { Service, ServiceLabel } from '../types/models'
 import { PageHeader, useToast } from '../components/PageHeader'
 import ServiceFormDialog from '../components/ServiceFormDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { usePrefs } from '../i18n/PrefsContext'
+import { isTemplateService, templateIdsFromLabels } from '../utils/templates'
 
 export default function ServicesPage() {
-  const [items, setItems] = useState<Service[]>([])
+  const [allItems, setAllItems] = useState<Service[]>([])
+  const [associations, setAssociations] = useState<ServiceLabel[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Service | null>(null)
   const [toDelete, setToDelete] = useState<Service | null>(null)
@@ -34,7 +37,9 @@ export default function ServicesPage() {
 
   const load = useCallback(async () => {
     try {
-      setItems(await servicesApi.list())
+      const [svcs, labels] = await Promise.all([servicesApi.list(), labelsApi.list()])
+      setAllItems(svcs)
+      setAssociations(labels || [])
     } catch (e) {
       showError((e as Error).message)
     }
@@ -43,6 +48,12 @@ export default function ServicesPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const templateIds = useMemo(() => templateIdsFromLabels(associations), [associations])
+  const items = useMemo(
+    () => allItems.filter((s) => !isTemplateService(s, templateIds)),
+    [allItems, templateIds],
+  )
 
   const save = async (svc: Service) => {
     try {

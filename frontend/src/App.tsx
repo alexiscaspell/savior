@@ -9,6 +9,7 @@ import SourcesPage from './pages/SourcesPage'
 import RulesPage from './pages/RulesPage'
 import ActionsPage from './pages/ActionsPage'
 import LabelsPage from './pages/LabelsPage'
+import ServiceTemplatesPage from './pages/ServiceTemplatesPage'
 import PrayPage from './pages/PrayPage'
 
 function ThemedApp() {
@@ -23,6 +24,7 @@ function ThemedApp() {
               <Route path="/" element={<Navigate to="/services" replace />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/services/:id" element={<ServiceDetailPage />} />
+              <Route path="/templates" element={<ServiceTemplatesPage />} />
               <Route path="/sources" element={<SourcesPage />} />
               <Route path="/rules" element={<RulesPage />} />
               <Route path="/actions" element={<ActionsPage />} />

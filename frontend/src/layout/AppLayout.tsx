@@ -20,6 +20,7 @@ import HubIcon from '@mui/icons-material/Hub'
 import CloudIcon from '@mui/icons-material/Cloud'
 import RuleIcon from '@mui/icons-material/Rule'
 import BoltIcon from '@mui/icons-material/Bolt'
+import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize'
 import LabelIcon from '@mui/icons-material/Label'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
@@ -41,6 +42,7 @@ export default function AppLayout() {
 
   const navItems = [
     { path: '/services', label: t('nav.services'), icon: <HubIcon /> },
+    { path: '/templates', label: t('nav.templates'), icon: <DashboardCustomizeIcon /> },
     { path: '/sources', label: t('nav.sources'), icon: <CloudIcon /> },
     { path: '/rules', label: t('nav.rules'), icon: <RuleIcon /> },
     { path: '/actions', label: t('nav.actions'), icon: <BoltIcon /> },

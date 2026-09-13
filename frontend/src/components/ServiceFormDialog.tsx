@@ -15,6 +15,7 @@ import { forwardRef, useEffect, useState } from 'react'
 import type { Service } from '../types/models'
 import { labelsApi } from '../api/labels'
 import { usePrefs } from '../i18n/PrefsContext'
+import { TEMPLATE_VAR } from '../utils/templates'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -23,18 +24,29 @@ const Transition = forwardRef(function Transition(
   return <Slide direction="up" ref={ref} {...props} />
 })
 
+function varsForEditor(vars: Record<string, unknown> | undefined, asTemplate: boolean) {
+  const next = { ...(vars || {}) }
+  if (asTemplate) {
+    delete next[TEMPLATE_VAR]
+  }
+  return JSON.stringify(next, null, 2)
+}
+
 export default function ServiceFormDialog({
   open,
   initial,
   onClose,
   onSave,
+  mode = 'service',
 }: {
   open: boolean
   initial?: Service | null
   onClose: () => void
   onSave: (service: Service) => Promise<void>
+  mode?: 'service' | 'template'
 }) {
   const { t } = usePrefs()
+  const asTemplate = mode === 'template'
   const [name, setName] = useState('')
   const [varsJson, setVarsJson] = useState('{}')
   const [labels, setLabels] = useState<string[]>([])
@@ -45,18 +57,20 @@ export default function ServiceFormDialog({
   useEffect(() => {
     if (open) {
       setName(initial?.name || '')
-      setVarsJson(JSON.stringify(initial?.vars || {}, null, 2))
+      setVarsJson(varsForEditor(initial?.vars, asTemplate))
       setLabels([...(initial?.labels || [])])
       setError('')
-      labelsApi
-        .list()
-        .then((items) => {
-          const names = [...new Set((items || []).map((l) => l.label).filter(Boolean))]
-          setLabelOptions(names)
-        })
-        .catch(() => setLabelOptions([]))
+      if (!asTemplate) {
+        labelsApi
+          .list()
+          .then((items) => {
+            const names = [...new Set((items || []).map((l) => l.label).filter(Boolean))]
+            setLabelOptions(names)
+          })
+          .catch(() => setLabelOptions([]))
+      }
     }
-  }, [open, initial])
+  }, [open, initial, asTemplate])
 
   const handleSave = async () => {
     let vars: Record<string, unknown>
@@ -72,7 +86,7 @@ export default function ServiceFormDialog({
         id: initial?.id,
         name,
         vars,
-        labels: labels.map((s) => s.trim()).filter(Boolean),
+        labels: asTemplate ? [] : labels.map((s) => s.trim()).filter(Boolean),
         sources: initial?.sources || [],
         rules: initial?.rules || [],
       })
@@ -82,9 +96,17 @@ export default function ServiceFormDialog({
     }
   }
 
+  const title = asTemplate
+    ? initial?.id
+      ? t('templates.view')
+      : t('templates.create')
+    : initial?.id
+      ? t('services.view')
+      : t('services.create')
+
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
-      <DialogTitle>{initial?.id ? t('services.view') : t('services.create')}</DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
@@ -101,39 +123,41 @@ export default function ServiceFormDialog({
             multiline
             minRows={4}
             error={Boolean(error)}
-            helperText={error}
+            helperText={error || (asTemplate ? t('templates.varsHint') : undefined)}
             fullWidth
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
-          <Autocomplete
-            multiple
-            freeSolo
-            options={labelOptions}
-            value={labels}
-            onChange={(_, value) => setLabels(value)}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => {
-                const { key, ...tagProps } = getTagProps({ index })
-                return (
-                  <Chip
-                    key={key}
-                    label={option}
-                    color="primary"
-                    variant="outlined"
-                    size="small"
-                    {...tagProps}
-                  />
-                )
-              })
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={t('services.labelsField')}
-                helperText={t('services.labelsHint')}
-              />
-            )}
-          />
+          {!asTemplate && (
+            <Autocomplete
+              multiple
+              freeSolo
+              options={labelOptions}
+              value={labels}
+              onChange={(_, value) => setLabels(value)}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index })
+                  return (
+                    <Chip
+                      key={key}
+                      label={option}
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                      {...tagProps}
+                    />
+                  )
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('services.labelsField')}
+                  helperText={t('services.labelsHint')}
+                />
+              )}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
