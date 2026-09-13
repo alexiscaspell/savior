@@ -38,6 +38,35 @@ def init(db_name:str):
             module_type.ModelEntity.metadata.create_all(_ENGINE)
 
         ModelEntity.metadata.create_all(_ENGINE)
+        _migrate_labels_table(_ENGINE)
+
+def _migrate_labels_table(engine: db.Engine) -> None:
+    """LABELS_SERVICES: PK was service_id; now label is PK and service_id is optional."""
+    try:
+        insp = db.inspect(engine)
+        if "LABELS_SERVICES" not in insp.get_table_names():
+            return
+        pk_cols = list((insp.get_pk_constraint("LABELS_SERVICES") or {}).get("constrained_columns") or [])
+        if pk_cols == ["label"]:
+            return
+
+        logger.info("Migrando LABELS_SERVICES a PK=label (template opcional)")
+        with engine.begin() as conn:
+            conn.execute(db.text(
+                "CREATE TABLE IF NOT EXISTS LABELS_SERVICES_v2 ("
+                "label VARCHAR NOT NULL PRIMARY KEY, "
+                "service_id INTEGER)"
+            ))
+            conn.execute(db.text(
+                "INSERT OR IGNORE INTO LABELS_SERVICES_v2 (label, service_id) "
+                "SELECT label, service_id FROM LABELS_SERVICES"
+            ))
+            conn.execute(db.text("DROP TABLE LABELS_SERVICES"))
+            conn.execute(db.text("ALTER TABLE LABELS_SERVICES_v2 RENAME TO LABELS_SERVICES"))
+        logger.info("Migración LABELS_SERVICES OK")
+    except Exception as e:
+        logger.warning(f"No se pudo migrar LABELS_SERVICES: {e}")
+
 
 def _create_engine(db_name:str=None)->db.Engine:
     global _ENGINE

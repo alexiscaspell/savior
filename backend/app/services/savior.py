@@ -41,16 +41,10 @@ def mock(file_path, force: bool = False):
     for label_dict in services_dict.get("labels", []) or []:
         label_name = label_dict.get("label")
         service_name = label_dict.get("service_name") or label_dict.get("service")
-        if not label_name or not service_name:
+        if not label_name:
             logger.warning(f"Label inválido en mock: {label_dict}")
             continue
 
-        template = service_repo.get_by_name(service_name)
-        if template is None:
-            logger.warning(f"No se encontró service plantilla '{service_name}' para label '{label_name}'")
-            continue
-
-        # Idempotente: LABELS_SERVICES usa service_id como PK
         from app.utils.sqlite import sqlite_util as sql
         from app.repositories.entity.label_entity import LabelServiceEntity
 
@@ -59,12 +53,22 @@ def mock(file_path, force: bool = False):
             logger.info(f"Label '{label_name}' ya existe, se omite")
             continue
 
+        template = None
+        if service_name:
+            template = service_repo.get_by_name(service_name)
+            if template is None:
+                logger.warning(f"No se encontró service plantilla '{service_name}' para label '{label_name}'")
+                continue
+
         service_repo.add_label(ServiceLabel(
             label=label_name,
-            service=Service.dummy(template.id),
+            service=Service.dummy(template.id) if template else None,
         ))
         labels_loaded += 1
-        logger.info(f"Label '{label_name}' → service '{service_name}' ({template.id})")
+        if template:
+            logger.info(f"Label '{label_name}' → service '{service_name}' ({template.id})")
+        else:
+            logger.info(f"Label '{label_name}' (tag-only, sin plantilla)")
 
     return {
         "loaded": loaded,
@@ -173,7 +177,7 @@ def eval_service_source(service_id:int,source_id:int):
 def add_label(label:ServiceLabel):
     return service_repo.add_label(label)
 
-def delete_label(service_id:int, label:str=None):
+def delete_label(service_id:int=None, label:str=None):
     return service_repo.delete_label(service_id, label)
 
 def get_all_labels()->List[ServiceLabel]:

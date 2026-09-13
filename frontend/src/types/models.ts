@@ -44,7 +44,8 @@ export interface Service {
 
 export interface ServiceLabel {
   label: string
-  service: { id?: number | null; name?: string }
+  /** Optional template service for rule/var inheritance. */
+  service?: { id?: number | null; name?: string } | null
 }
 
 export interface Pray {

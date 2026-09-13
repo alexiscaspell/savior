@@ -83,9 +83,9 @@ def test_create_label_via_api_and_apply(client):
 def test_delete_label_association(client, labels_yaml):
     savior.mock(labels_yaml)
     labels = client.get("/api/v1/labels").json()
-    template_id = labels[0]["service"]["id"]
+    assert labels[0]["label"] == "http-health"
 
-    deleted = client.delete(f"/api/v1/labels/{template_id}", params={"label": "http-health"})
+    deleted = client.delete("/api/v1/labels", params={"label": "http-health"})
     assert deleted.status_code == 200
     assert client.get("/api/v1/labels").json() == []
 
@@ -93,6 +93,39 @@ def test_delete_label_association(client, labels_yaml):
     consumer = next(s for s in client.get("/api/v1/services").json() if s["name"] == "api_consumidor")
     assert consumer["rules"] == []
     assert "team" not in consumer["vars"]
+
+
+def test_tag_only_label_without_template(client):
+    created = client.post("/api/v1/labels", json={"label": "node"})
+    assert created.status_code == 200
+    assert created.json()["label"] == "node"
+    assert created.json()["service_id"] is None
+
+    labels = client.get("/api/v1/labels").json()
+    assert any(l["label"] == "node" and (l.get("service") is None or l.get("service", {}).get("id") is None) for l in labels)
+
+    consumer_id = client.post(
+        "/api/v1/services",
+        json={
+            "name": "node-dell",
+            "vars": {"name": "dell"},
+            "labels": ["node"],
+            "sources": [],
+            "rules": [],
+        },
+    ).json()
+
+    child = client.get(f"/api/v1/services/{consumer_id}").json()
+    assert child["labels"] == ["node"]
+    assert child["rules"] == []
+    assert child["vars"] == {"name": "dell"}
+
+    # pray must not 409 just because of the tag
+    pray = client.post("/api/v1/savior/pray", json={"service_name": "node-dell", "params": {}})
+    # no rules → FailedPrayException 409 historically; with zero rules, check behavior
+    # savior raises FailedPrayException only if rule_failed_counter==len(rules) and len(rules)>0
+    assert pray.status_code == 200
+    assert pray.json()["rules"] == []
 
 
 def test_pray_uses_inherited_rule(client, labels_yaml, mock_http):

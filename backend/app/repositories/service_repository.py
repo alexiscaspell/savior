@@ -104,13 +104,23 @@ def get_all_by_name_like(name:str)-> List[Service]:
     return [_get_complete_service(service) for service in services]
 
 def add_label(label:ServiceLabel):
-    sql.insert(label,LabelServiceEntity,return_id=False)
+    from app.repositories.entity.label_entity import LabelServiceEntity
+    existing = sql.select_by_filter({"label": label.label}, LabelServiceEntity)
+    if existing:
+        # Upsert template binding for an existing catalog label
+        sql.delete_by_filter({"label": label.label}, LabelServiceEntity)
+    sql.insert(label, LabelServiceEntity, return_id=False)
 
-def delete_label(service_id:int, label:str=None):
-    filt = {"service_id": service_id}
+def delete_label(service_id:int=None, label:str=None):
+    filt = {}
     if label:
         filt["label"] = label
+    if service_id is not None:
+        filt["service_id"] = service_id
+    if not filt:
+        return 0
     sql.delete_by_filter(filt, LabelServiceEntity)
+    return 1
 
 def get_all_label_associations()->List[ServiceLabel]:
     return sql.select_all(LabelServiceEntity)
@@ -119,16 +129,28 @@ def get_labels(label_name:str)->List[ServiceLabel]:
     incomplete_labels = sql.select_by_filter({"label":label_name},LabelServiceEntity)
 
     if len(incomplete_labels)==0:
+        # Backward compat: treat a service named like the label as template
         service = get_by_name(label_name)
         if service is None:
             return []
         return [ServiceLabel(service=service,label=label_name)]
 
+    resolved = []
     for incomplete_label in incomplete_labels:
-        service = get_by_id(incomplete_label.service.id)
+        sid = incomplete_label.service.id if incomplete_label.service else None
+        if sid is None:
+            # Tag-only label: no inheritance
+            resolved.append(ServiceLabel(label=incomplete_label.label, service=None))
+            continue
+        service = get_by_id(sid)
+        if service is None:
+            # Template missing: keep as tag-only
+            resolved.append(ServiceLabel(label=incomplete_label.label, service=None))
+            continue
         incomplete_label.service = service
+        resolved.append(incomplete_label)
 
-    return incomplete_labels
+    return resolved
 
 
 def get_all_labels(labels:List[str])-> List[ServiceLabel]:

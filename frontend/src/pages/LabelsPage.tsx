@@ -34,7 +34,7 @@ export default function LabelsPage() {
   const [items, setItems] = useState<ServiceLabel[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [label, setLabel] = useState('')
-  const [serviceId, setServiceId] = useState<number | ''>('')
+  const [serviceId, setServiceId] = useState<number | '' | 'none'>('none')
   const [toDelete, setToDelete] = useState<ServiceLabel | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuConsumers, setMenuConsumers] = useState<Service[]>([])
@@ -69,15 +69,16 @@ export default function LabelsPage() {
   }, [services])
 
   const create = async () => {
-    if (!label || !serviceId) return
+    if (!label) return
     try {
-      await labelsApi.create({
-        label,
-        service: { id: serviceId as number },
-      })
+      const payload: ServiceLabel = { label }
+      if (serviceId !== 'none' && serviceId !== '') {
+        payload.service = { id: serviceId as number }
+      }
+      await labelsApi.create(payload)
       showSuccess(t('labels.created'))
       setLabel('')
-      setServiceId('')
+      setServiceId('none')
       await load()
     } catch (e) {
       showError((e as Error).message)
@@ -85,9 +86,9 @@ export default function LabelsPage() {
   }
 
   const confirmDelete = async () => {
-    if (!toDelete?.service?.id) return
+    if (!toDelete?.label) return
     try {
-      await labelsApi.remove(toDelete.service.id, toDelete.label)
+      await labelsApi.remove(toDelete.label, toDelete.service?.id)
       showSuccess(t('labels.deleted'))
       setToDelete(null)
       await load()
@@ -123,8 +124,9 @@ export default function LabelsPage() {
             <Select
               label={t('labels.templateService')}
               value={serviceId}
-              onChange={(e) => setServiceId(e.target.value as number)}
+              onChange={(e) => setServiceId(e.target.value as number | 'none')}
             >
+              <MenuItem value="none">{t('labels.noTemplate')}</MenuItem>
               {services.map((s) => (
                 <MenuItem key={s.id} value={s.id!}>
                   {s.name}
@@ -132,7 +134,7 @@ export default function LabelsPage() {
               ))}
             </Select>
           </FormControl>
-          <Button variant="contained" onClick={create} disabled={!label || !serviceId}>
+          <Button variant="contained" onClick={create} disabled={!label}>
             {t('labels.create')}
           </Button>
         </Stack>
@@ -152,17 +154,21 @@ export default function LabelsPage() {
             {items.map((item, idx) => {
               const consumers = consumersByLabel.get(item.label) || []
               const templateName =
-                item.service?.name ||
-                services.find((s) => s.id === item.service?.id)?.name ||
-                '—'
+                item.service?.id == null
+                  ? t('labels.noTemplate')
+                  : item.service?.name ||
+                    services.find((s) => s.id === item.service?.id)?.name ||
+                    '—'
               return (
-                <TableRow key={`${item.label}-${item.service?.id}-${idx}`} hover>
+                <TableRow key={`${item.label}-${item.service?.id ?? 'tag'}-${idx}`} hover>
                   <TableCell>{item.label}</TableCell>
                   <TableCell>
                     <Typography variant="body2">{templateName}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t('common.id')} {item.service?.id ?? '—'}
-                    </Typography>
+                    {item.service?.id != null && (
+                      <Typography variant="caption" color="text.secondary">
+                        {t('common.id')} {item.service.id}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -235,7 +241,7 @@ export default function LabelsPage() {
         title={t('labels.deleteTitle')}
         message={t('labels.deleteMsg', {
           name: toDelete?.label || '',
-          id: toDelete?.service?.id || '',
+          id: toDelete?.service?.id ?? t('labels.noTemplate'),
         })}
         onClose={() => setToDelete(null)}
         onConfirm={confirmDelete}
