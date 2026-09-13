@@ -14,7 +14,10 @@ class ServiceLabel(AppModel):
         if self.service is None or self.service.id is None:
             return svc
 
-        template_vars = self.service.vars or {}
+        template_vars = dict(self.service.vars or {})
+        # Internal marker must not leak into consumers.
+        template_vars.pop("__template", None)
+
         vars_ = copy(template_vars)
         vars_.update(svc.vars or {})
         svc.vars = vars_

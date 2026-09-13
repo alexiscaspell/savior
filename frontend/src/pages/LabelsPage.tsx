@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormHelperText,
   IconButton,
   InputLabel,
   ListItemText,
@@ -75,9 +76,16 @@ export default function LabelsPage() {
     load()
   }, [load])
 
+  const templateServices = useMemo(() => {
+    const ids = templateIdsFromLabels(items)
+    return services.filter((s) => isTemplateService(s, ids))
+  }, [services, items])
+
   const consumersByLabel = useMemo(() => {
+    const templateIds = templateIdsFromLabels(items)
     const map = new Map<string, Service[]>()
     for (const svc of services) {
+      if (isTemplateService(svc, templateIds)) continue
       for (const lbl of svc.labels || []) {
         const list = map.get(lbl) || []
         list.push(svc)
@@ -85,12 +93,6 @@ export default function LabelsPage() {
       }
     }
     return map
-  }, [services])
-
-  const templateServices = useMemo(() => {
-    const ids = templateIdsFromLabels(items)
-    const templates = services.filter((s) => isTemplateService(s, ids))
-    return templates.length > 0 ? templates : services
   }, [services, items])
 
   const create = async () => {
@@ -169,7 +171,7 @@ export default function LabelsPage() {
             onChange={(e) => setLabel(e.target.value)}
             sx={{ minWidth: 180 }}
           />
-          <FormControl sx={{ minWidth: 220 }} size="small">
+          <FormControl sx={{ minWidth: 260 }} size="small">
             <InputLabel>{t('labels.templateService')}</InputLabel>
             <Select
               label={t('labels.templateService')}
@@ -183,6 +185,11 @@ export default function LabelsPage() {
                 </MenuItem>
               ))}
             </Select>
+            <FormHelperText>
+              {templateServices.length === 0
+                ? t('labels.noTemplatesAvailable')
+                : t('labels.templateHint')}
+            </FormHelperText>
           </FormControl>
           <Button variant="contained" onClick={create} disabled={!label}>
             {t('labels.create')}
@@ -289,6 +296,11 @@ export default function LabelsPage() {
                   </MenuItem>
                 ))}
               </Select>
+              <FormHelperText>
+                {templateServices.length === 0
+                  ? t('labels.noTemplatesAvailable')
+                  : t('labels.templateHint')}
+              </FormHelperText>
             </FormControl>
           </Stack>
         </DialogContent>
