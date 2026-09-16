@@ -27,6 +27,13 @@ const Transition = forwardRef(function Transition(
   return <Slide direction="up" ref={ref} {...props} />
 })
 
+const DEFAULT_SCRIPT =
+  '# Assign `result` to return the consequence.\n# Available: svc, requests, json, os, source0..\nresult = None\n'
+
+function isScriptAction(type: ActionType): boolean {
+  return type === 'python_script' || type === 'custom'
+}
+
 function defaultInput(type: ActionType): Record<string, unknown> | null {
   switch (type) {
     case 'http_action':
@@ -39,10 +46,7 @@ function defaultInput(type: ActionType): Record<string, unknown> | null {
       return {}
     case 'python_script':
     case 'custom':
-      return {
-        script:
-          "# Assign `result` to return the consequence.\n# Available: svc, requests, json, os, source0..\nresult = None\n",
-      }
+      return { script: DEFAULT_SCRIPT }
     default:
       return {}
   }
@@ -96,24 +100,17 @@ function inputSchema(type: ActionType): object {
         required: ['command', 'ip'],
         additionalProperties: true,
       }
-    case 'python_script':
-    case 'custom':
-      return {
-        type: 'object',
-        properties: {
-          script: {
-            type: 'string',
-            description: 'Python script; assign result = ... to return a value',
-          },
-        },
-        required: ['script'],
-        additionalProperties: true,
-      }
     case 'suggest':
       return { type: 'object', additionalProperties: true }
     default:
       return { type: 'object', additionalProperties: true }
   }
+}
+
+function scriptFromInput(input: Record<string, unknown> | null | undefined): string {
+  if (!input || typeof input !== 'object') return DEFAULT_SCRIPT
+  const script = input.script
+  return typeof script === 'string' ? script : DEFAULT_SCRIPT
 }
 
 const emptyAction = (): Action => ({
@@ -136,6 +133,7 @@ export default function ActionFormDialog({
 }) {
   const [form, setForm] = useState<Action>(emptyAction())
   const [inputJson, setInputJson] = useState('{}')
+  const [script, setScript] = useState(DEFAULT_SCRIPT)
   const [saving, setSaving] = useState(false)
   const [jsonError, setJsonError] = useState('')
   const { t } = usePrefs()
@@ -145,6 +143,7 @@ export default function ActionFormDialog({
       const base = initial ? { ...initial } : emptyAction()
       setForm(base)
       setInputJson(JSON.stringify(base.input ?? {}, null, 2))
+      setScript(scriptFromInput(base.input as Record<string, unknown> | null))
       setJsonError('')
     }
   }, [open, initial])
@@ -153,26 +152,27 @@ export default function ActionFormDialog({
     const input = defaultInput(type)
     setForm((f) => ({ ...f, type, input }))
     setInputJson(JSON.stringify(input, null, 2))
+    if (isScriptAction(type)) {
+      setScript(scriptFromInput(input))
+    }
   }
 
   const schema = useMemo(() => inputSchema(form.type), [form.type])
-
-  const scriptValue = useMemo(() => {
-    try {
-      return String((JSON.parse(inputJson || '{}') as { script?: string }).script || '')
-    } catch {
-      return ''
-    }
-  }, [inputJson])
+  const scriptMode = isScriptAction(form.type)
 
   const handleSave = async () => {
     let input: Record<string, unknown> | null
-    try {
-      input = JSON.parse(inputJson)
+    if (scriptMode) {
+      input = { script }
       setJsonError('')
-    } catch {
-      setJsonError(t('actions.invalidJson'))
-      return
+    } else {
+      try {
+        input = JSON.parse(inputJson)
+        setJsonError('')
+      } catch {
+        setJsonError(t('actions.invalidJson'))
+        return
+      }
     }
     setSaving(true)
     try {
@@ -209,64 +209,40 @@ export default function ActionFormDialog({
               <MenuItem value="custom">custom (alias)</MenuItem>
             </Select>
           </FormControl>
-          {(form.type === 'python_script' || form.type === 'custom') && (
+          {scriptMode ? (
             <CodeEditor
               label={t('actions.script')}
-              value={scriptValue}
-              onChange={(script) => {
-                let parsed: Record<string, unknown> = {}
-                try {
-                  parsed = JSON.parse(inputJson || '{}')
-                } catch {
-                  parsed = {}
-                }
-                const next = { ...parsed, script }
-                setInputJson(JSON.stringify(next, null, 2))
-                setForm((f) => ({ ...f, input: next }))
-              }}
+              value={script}
+              onChange={setScript}
               language="python"
-              height={260}
+              height={360}
               path={`inmemory://action-script-${initial?.id ?? 'new'}.py`}
               completions={['svc', 'result', 'requests', 'json', 'os', 'source0']}
               helperText={t('actions.scriptHint')}
             />
-          )}
-          <CodeEditor
-            label={t('actions.result')}
-            value={form.result || ''}
-            onChange={(result) => setForm({ ...form, result })}
-            language="python"
-            height={140}
-            path={`inmemory://action-result-${initial?.id ?? 'new'}.py`}
-            completions={['$response', 'svc', 'result', 'True', 'False']}
-            helperText={t('actions.resultHint')}
-          />
-          {form.type !== 'python_script' && form.type !== 'custom' && (
-          <CodeEditor
-            label={t('actions.inputJson')}
-            value={inputJson}
-            onChange={setInputJson}
-            language="json"
-            height={220}
-            path={`inmemory://action-input-${form.type}.json`}
-            schema={schema}
-            error={Boolean(jsonError)}
-            helperText={jsonError || t('actions.inputHint')}
-          />
-          )}
-          {(form.type === 'python_script' || form.type === 'custom') && (
+          ) : (
             <CodeEditor
               label={t('actions.inputJson')}
               value={inputJson}
               onChange={setInputJson}
               language="json"
-              height={120}
+              height={220}
               path={`inmemory://action-input-${form.type}.json`}
               schema={schema}
               error={Boolean(jsonError)}
-              helperText={jsonError || t('actions.scriptInputHint')}
+              helperText={jsonError || t('actions.inputHint')}
             />
           )}
+          <CodeEditor
+            label={scriptMode ? t('actions.resultOptional') : t('actions.result')}
+            value={form.result || ''}
+            onChange={(result) => setForm({ ...form, result })}
+            language="python"
+            height={scriptMode ? 100 : 140}
+            path={`inmemory://action-result-${initial?.id ?? 'new'}.py`}
+            completions={['$response', 'svc', 'result', 'True', 'False']}
+            helperText={scriptMode ? t('actions.resultOptionalHint') : t('actions.resultHint')}
+          />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
