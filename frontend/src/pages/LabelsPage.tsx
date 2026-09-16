@@ -100,7 +100,7 @@ export default function LabelsPage() {
     try {
       const payload: ServiceLabel = { label }
       if (serviceId !== 'none' && serviceId !== '') {
-        payload.service = { id: serviceId as number }
+        payload.service = { id: Number(serviceId) }
       }
       await labelsApi.create(payload)
       showSuccess(t('labels.created'))
@@ -123,8 +123,9 @@ export default function LabelsPage() {
     try {
       const payload: ServiceLabel = { label: editing.label, service: null }
       if (editTemplateId !== 'none' && editTemplateId !== '') {
-        const tpl = templateServices.find((s) => s.id === editTemplateId)
-        payload.service = { id: editTemplateId as number, name: tpl?.name || '' }
+        const tplId = Number(editTemplateId)
+        const tpl = templateServices.find((s) => Number(s.id) === tplId)
+        payload.service = { id: tplId, name: tpl?.name || '' }
       }
       await labelsApi.update(payload)
       showSuccess(t('labels.updated'))
