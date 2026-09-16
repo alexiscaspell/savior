@@ -25,6 +25,13 @@ const Transition = forwardRef(function Transition(
   return <Slide direction="up" ref={ref} {...props} />
 })
 
+const DEFAULT_SCRIPT =
+  '# Assign `result` to produce source data.\n# Available: svc, requests, json, os, source0..\nresult = None\n'
+
+function isScriptSource(type: SourceType): boolean {
+  return type === 'python_script' || type === 'custom'
+}
+
 const emptySource = (): Source => ({
   name: '',
   type: 'http_request',
@@ -45,6 +52,9 @@ function defaultInput(type: SourceType): Record<string, unknown> {
         port: 22,
         creds: { user: '', password: '', key_file: '' },
       }
+    case 'python_script':
+    case 'custom':
+      return { script: DEFAULT_SCRIPT }
     default:
       return {}
   }
@@ -103,6 +113,12 @@ function inputSchema(type: SourceType): object {
   }
 }
 
+function scriptFromInput(input: Record<string, unknown> | null | undefined): string {
+  if (!input || typeof input !== 'object') return DEFAULT_SCRIPT
+  const script = input.script
+  return typeof script === 'string' ? script : DEFAULT_SCRIPT
+}
+
 export default function SourceFormDialog({
   open,
   initial,
@@ -116,6 +132,7 @@ export default function SourceFormDialog({
 }) {
   const [form, setForm] = useState<Source>(emptySource())
   const [inputJson, setInputJson] = useState('{}')
+  const [script, setScript] = useState(DEFAULT_SCRIPT)
   const [outputExpr, setOutputExpr] = useState('')
   const [saving, setSaving] = useState(false)
   const [jsonError, setJsonError] = useState('')
@@ -126,6 +143,7 @@ export default function SourceFormDialog({
       const base = initial ? { ...initial, input: initial.input || {} } : emptySource()
       setForm(base)
       setInputJson(JSON.stringify(base.input || {}, null, 2))
+      setScript(scriptFromInput(base.input as Record<string, unknown>))
       setOutputExpr(base.output || '')
       setJsonError('')
     }
@@ -135,18 +153,27 @@ export default function SourceFormDialog({
     const input = defaultInput(type)
     setForm((f) => ({ ...f, type, input }))
     setInputJson(JSON.stringify(input, null, 2))
+    if (isScriptSource(type)) {
+      setScript(scriptFromInput(input))
+    }
   }
 
   const schema = useMemo(() => inputSchema(form.type), [form.type])
+  const scriptMode = isScriptSource(form.type)
 
   const handleSave = async () => {
     let input: Record<string, unknown>
-    try {
-      input = JSON.parse(inputJson)
+    if (scriptMode) {
+      input = { script }
       setJsonError('')
-    } catch {
-      setJsonError(t('sources.invalidJson'))
-      return
+    } else {
+      try {
+        input = JSON.parse(inputJson)
+        setJsonError('')
+      } catch {
+        setJsonError(t('sources.invalidJson'))
+        return
+      }
     }
     setSaving(true)
     try {
@@ -183,7 +210,8 @@ export default function SourceFormDialog({
               <MenuItem value="http_request">http_request</MenuItem>
               <MenuItem value="http_log">http_log</MenuItem>
               <MenuItem value="ssh_log">ssh_log</MenuItem>
-              <MenuItem value="custom">custom</MenuItem>
+              <MenuItem value="python_script">python_script</MenuItem>
+              <MenuItem value="custom">custom (alias)</MenuItem>
             </Select>
           </FormControl>
           <TextField
@@ -193,25 +221,38 @@ export default function SourceFormDialog({
             helperText={t('sources.variableHint')}
             fullWidth
           />
+          {scriptMode ? (
+            <CodeEditor
+              label={t('sources.script')}
+              value={script}
+              onChange={setScript}
+              language="python"
+              height={360}
+              path={`inmemory://source-script-${initial?.id ?? 'new'}.py`}
+              completions={['svc', 'result', 'requests', 'json', 'os', 'source0']}
+              helperText={t('sources.scriptHint')}
+            />
+          ) : (
+            <CodeEditor
+              label={t('sources.inputJson')}
+              value={inputJson}
+              onChange={setInputJson}
+              language="json"
+              height={220}
+              path={`inmemory://source-input-${form.type}.json`}
+              schema={schema}
+              error={Boolean(jsonError)}
+              helperText={jsonError || t('sources.inputHint')}
+            />
+          )}
           <CodeEditor
-            label={t('sources.inputJson')}
-            value={inputJson}
-            onChange={setInputJson}
-            language="json"
-            height={220}
-            path={`inmemory://source-input-${form.type}.json`}
-            schema={schema}
-            error={Boolean(jsonError)}
-            helperText={jsonError || t('sources.inputHint')}
-          />
-          <CodeEditor
-            label={t('sources.output')}
+            label={scriptMode ? t('sources.outputOptional') : t('sources.output')}
             value={outputExpr}
             onChange={setOutputExpr}
             language="python"
             height={120}
             path="inmemory://source-output.py"
-            helperText={t('sources.outputHint')}
+            helperText={scriptMode ? t('sources.outputOptionalHint') : t('sources.outputHint')}
           />
         </Stack>
       </DialogContent>

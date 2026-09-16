@@ -1,6 +1,8 @@
 from app.model.app_model import AppModel,Case,convert_to_case
 from enum import Enum
 import sys
+import json
+import os
 from app.model.exception import InvalidSourceException
 import requests as req
 from app.utils.logger_util import get_logger
@@ -16,6 +18,7 @@ class SourceType(Enum):
     http_request = "http_request"
     ssh_log = "ssh_log"
     custom = "custom"
+    python_script = "python_script"
 
 def class_from_str(classname):
     return getattr(sys.modules[__name__], classname)
@@ -101,3 +104,54 @@ class SshLogSource(Source):
         bash_command = f"'cat {self.filepath}'"
 
         return execute_command(bash_command,self.ip,creds,self.port)
+
+
+class PythonScriptSource(Source):
+    """Run a Python snippet; assign `result` to produce source data.
+
+    Available: svc, requests, json, os, source0..N (already collected), context.
+    Optional `output` expression formats `result` / `response` after the script.
+    """
+
+    script: str = ""
+
+    def get_data(self) -> object:
+        context = self.context
+        args = context.context_vars()
+
+        script = self.script or ""
+        if not script and isinstance(self.input, dict):
+            script = self.input.get("script") or ""
+        if not script:
+            raise InvalidSourceException()
+
+        script = context.get_curated_string(script)
+
+        ns = dict(args)
+        ns["result"] = None
+        ns["requests"] = req
+        ns["json"] = json
+        ns["os"] = os
+        ns["context"] = context
+
+        try:
+            exec(script, ns, ns)  # noqa: S102 — intentional user-defined source scripts
+        except Exception as e:
+            logger.exception("python_script source failed")
+            raise InvalidSourceException() from e
+
+        data = ns.get("result")
+
+        if self.output:
+            eval_args = dict(args)
+            eval_args.update({k: v for k, v in ns.items() if not str(k).startswith("_")})
+            eval_args["result"] = data
+            eval_args["response"] = data
+            return context.eval(self.output, eval_args)
+
+        return data
+
+
+class CustomSource(PythonScriptSource):
+    """Legacy alias of python_script (`type: custom`)."""
+    pass
