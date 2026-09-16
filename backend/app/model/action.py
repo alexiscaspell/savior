@@ -86,17 +86,35 @@ class HttpAction(Action):
 
     def apply(self):
         context = self.context
+        args = context.context_vars()
 
         url = context.current_rule.get_curated_string(self.url)
+        url = context.eval(url, args)
 
-        if self.method in ["post","put","patch"]:
-            response = getattr(req, self.method)(url,data=self.body,headers=self.headers)
+        body = self.body
+        if isinstance(body, str):
+            body = context.current_rule.get_curated_string(body)
+            body = context.eval(body, args)
+        elif isinstance(body, dict):
+            # Allow templated string values inside JSON body
+            curated = {}
+            for k, v in body.items():
+                if isinstance(v, str):
+                    v = context.current_rule.get_curated_string(v)
+                    v = context.eval(v, args)
+                curated[k] = v
+            body = curated
+
+        if self.method in ["post", "put", "patch"]:
+            response = getattr(req, self.method)(url, data=body, headers=self.headers)
         else:
-            response = getattr(req, self.method)(url,headers=self.headers)
-            
-        result = self.result.replace("$response","response")
+            response = getattr(req, self.method)(url, headers=self.headers)
 
-        return context.eval(result,{"response":response})
+        result = self.result.replace("$response", "response")
+        # Include service context so result templates can mention svc.vars.*
+        eval_args = dict(args)
+        eval_args["response"] = response
+        return context.eval(result, eval_args)
 
 class SshCredentials(AppModel):
     user : str
