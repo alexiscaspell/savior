@@ -127,7 +127,7 @@ export default function ServiceTemplatesPage() {
               <TableCell>{t('common.name')}</TableCell>
               <TableCell>{t('nav.rules')}</TableCell>
               <TableCell>{t('nav.sources')}</TableCell>
-              <TableCell>{t('nav.labels')}</TableCell>
+              <TableCell>{t('templates.boundLabels')}</TableCell>
               <TableCell>{t('templates.consumers')}</TableCell>
               <TableCell align="right">{t('common.actions')}</TableCell>
             </TableRow>

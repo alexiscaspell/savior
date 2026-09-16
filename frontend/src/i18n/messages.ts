@@ -60,6 +60,8 @@ const es: Dict = {
   'templates.deleteMsg': '¿Eliminar "{name}"? Los labels que la usen quedarán sin plantilla.',
   'templates.consumers': 'Consumers',
   'templates.noLabels': 'Sin label asociado',
+  'templates.boundLabels': 'Labels del catálogo',
+  'templates.boundLabelsHint': 'Se asocian en Labels → plantilla. La plantilla no lleva labels propios.',
   'templates.varsHint': 'Vars que heredarán los services con el label',
 
   'sources.title': 'Sources',
@@ -259,6 +261,8 @@ const en: Dict = {
   'templates.deleteMsg': 'Delete "{name}"? Labels using it will lose their template.',
   'templates.consumers': 'Consumers',
   'templates.noLabels': 'No linked label',
+  'templates.boundLabels': 'Catalog labels',
+  'templates.boundLabelsHint': 'Bound in Labels → template. Templates do not wear their own labels.',
   'templates.varsHint': 'Vars inherited by services that use the label',
 
   'sources.title': 'Sources',

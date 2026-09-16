@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Autocomplete,
@@ -23,9 +23,10 @@ import { servicesApi } from '../api/services'
 import { sourcesApi } from '../api/sources'
 import { rulesApi } from '../api/rules'
 import { labelsApi } from '../api/labels'
-import type { Rule, Service, Source } from '../types/models'
+import type { Rule, Service, ServiceLabel, Source } from '../types/models'
 import { useToast } from '../components/PageHeader'
 import { usePrefs } from '../i18n/PrefsContext'
+import { isTemplateService, templateIdsFromLabels } from '../utils/templates'
 
 export default function ServiceDetailPage() {
   const { id } = useParams()
@@ -34,6 +35,7 @@ export default function ServiceDetailPage() {
   const { showError, showSuccess } = useToast()
   const { t } = usePrefs()
   const [service, setService] = useState<Service | null>(null)
+  const [associations, setAssociations] = useState<ServiceLabel[]>([])
   const [tab, setTab] = useState(0)
   const [allSources, setAllSources] = useState<Source[]>([])
   const [allRules, setAllRules] = useState<Rule[]>([])
@@ -54,6 +56,7 @@ export default function ServiceDetailPage() {
         labelsApi.list(),
       ])
       setService(svc)
+      setAssociations(labelItems || [])
       setVarsJson(JSON.stringify(svc.vars || {}, null, 2))
       setLabels([...(svc.labels || [])])
       setVarsError('')
@@ -68,6 +71,16 @@ export default function ServiceDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const asTemplate = useMemo(() => {
+    if (!service) return false
+    return isTemplateService(service, templateIdsFromLabels(associations))
+  }, [service, associations])
+
+  const boundCatalogLabels = useMemo(() => {
+    if (!service?.id) return [] as string[]
+    return associations.filter((a) => a.service?.id === service.id).map((a) => a.label)
+  }, [service, associations])
 
   const saveMeta = async () => {
     if (!service) return
@@ -84,7 +97,8 @@ export default function ServiceDetailPage() {
       await servicesApi.update(serviceId, {
         ...service,
         vars,
-        labels: labels.map((s) => s.trim()).filter(Boolean),
+        // Templates never wear consumer labels — binding is via Labels catalog.
+        labels: asTemplate ? [] : labels.map((s) => s.trim()).filter(Boolean),
       })
       showSuccess(t('services.updated'))
       await load()
@@ -105,13 +119,13 @@ export default function ServiceDetailPage() {
   return (
     <Box>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton onClick={() => navigate('/services')}>
+        <IconButton onClick={() => navigate(asTemplate ? '/templates' : '/services')}>
           <ArrowBackIcon />
         </IconButton>
         <Box>
           <Typography variant="h4">{service.name}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {t('services.edit')} · {t('common.id')} {service.id}
+            {asTemplate ? t('templates.edit') : t('services.edit')} · {t('common.id')} {service.id}
           </Typography>
         </Box>
       </Stack>
@@ -125,39 +139,61 @@ export default function ServiceDetailPage() {
             multiline
             minRows={4}
             error={Boolean(varsError)}
-            helperText={varsError || undefined}
+            helperText={varsError || (asTemplate ? t('templates.varsHint') : undefined)}
             fullWidth
             InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
-          <Autocomplete
-            multiple
-            freeSolo
-            options={labelOptions}
-            value={labels}
-            onChange={(_, value) => setLabels(value)}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => {
-                const { key, ...tagProps } = getTagProps({ index })
-                return (
-                  <Chip
-                    key={key}
-                    label={option}
-                    color="primary"
-                    variant="outlined"
-                    size="small"
-                    {...tagProps}
-                  />
-                )
-              })
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={t('services.labelsField')}
-                helperText={t('services.labelsHint')}
-              />
-            )}
-          />
+          {asTemplate ? (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                {t('templates.boundLabels')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {t('templates.boundLabelsHint')}
+              </Typography>
+              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                {boundCatalogLabels.length === 0 ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('templates.noLabels')}
+                  </Typography>
+                ) : (
+                  boundCatalogLabels.map((l) => (
+                    <Chip key={l} label={l} size="small" color="primary" variant="outlined" />
+                  ))
+                )}
+              </Stack>
+            </Box>
+          ) : (
+            <Autocomplete
+              multiple
+              freeSolo
+              options={labelOptions}
+              value={labels}
+              onChange={(_, value) => setLabels(value)}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index })
+                  return (
+                    <Chip
+                      key={key}
+                      label={option}
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                      {...tagProps}
+                    />
+                  )
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('services.labelsField')}
+                  helperText={t('services.labelsHint')}
+                />
+              )}
+            />
+          )}
           <Box>
             <Button variant="contained" onClick={saveMeta} disabled={savingMeta}>
               {t('common.save')}
