@@ -14,6 +14,7 @@ import {
   InputLabel,
   ListItemText,
   MenuItem,
+  Paper,
   Select,
   Slide,
   Stack,
@@ -23,10 +24,10 @@ import {
 import type { TransitionProps } from '@mui/material/transitions'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import AddIcon from '@mui/icons-material/Add'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { forwardRef, useEffect, useMemo, useState } from 'react'
-import type { Action, Rule, Source } from '../types/models'
-import { ActionMultiSelect } from './ActionFormDialog'
+import type { Action, ActionType, Rule, Source } from '../types/models'
 import CodeEditor from './CodeEditor'
 import { usePrefs } from '../i18n/PrefsContext'
 
@@ -44,6 +45,9 @@ const emptyRule = (): Rule => ({
   actions: [],
   preconditions: [],
 })
+
+const DEFAULT_SCRIPT =
+  '# Assign `result` to return the consequence.\n# Available: svc, requests, json, os, source0..\nresult = None\n'
 
 function stripDollar(v: string) {
   return v.startsWith('$') ? v.slice(1) : v
@@ -64,7 +68,62 @@ function sourceLabel(s: Source) {
   return `${name} · ${s.variable}`
 }
 
+function isScriptAction(type: ActionType): boolean {
+  return type === 'python_script' || type === 'custom'
+}
+
+function defaultInput(type: ActionType): Record<string, unknown> {
+  switch (type) {
+    case 'http_action':
+      return { url: '', method: 'get', headers: {}, body: null }
+    case 'set_variable':
+      return { expression: '', variable: '' }
+    case 'ssh':
+      return { command: '', ip: '', port: 22, creds: { user: '', password: '', key_file: '' } }
+    case 'python_script':
+    case 'custom':
+      return { script: DEFAULT_SCRIPT }
+    default:
+      return {}
+  }
+}
+
+function emptyOwnedAction(): Action {
+  return {
+    id: null,
+    name: '',
+    type: 'suggest',
+    result: '',
+    input: {},
+  }
+}
+
+function cloneAction(action: Action): Action {
+  return {
+    id: null,
+    name: action.name || '',
+    type: action.type,
+    result: action.result || '',
+    input: action.input ? JSON.parse(JSON.stringify(action.input)) : {},
+  }
+}
+
 type RenameRow = { from: string; to: string }
+
+type OwnedActionDraft = Action & { _key: string; inputJson: string; script: string }
+
+function toDraft(action: Action, key: string): OwnedActionDraft {
+  const input = (action.input || {}) as Record<string, unknown>
+  const script =
+    typeof input.script === 'string' ? input.script : isScriptAction(action.type) ? DEFAULT_SCRIPT : ''
+  return {
+    ...action,
+    id: null,
+    _key: key,
+    inputJson: JSON.stringify(action.input ?? {}, null, 2),
+    script,
+  }
+}
 
 export default function RuleFormDialog({
   open,
@@ -88,8 +147,10 @@ export default function RuleFormDialog({
   const [selectedVariables, setSelectedVariables] = useState<string[]>([])
   const [renames, setRenames] = useState<RenameRow[]>([])
   const [preconditions, setPreconditions] = useState<string[]>([])
-  const [actionIds, setActionIds] = useState<number[]>([])
+  const [ownedActions, setOwnedActions] = useState<OwnedActionDraft[]>([])
+  const [copyFromId, setCopyFromId] = useState<number | ''>('')
   const [saving, setSaving] = useState(false)
+  const [actionError, setActionError] = useState('')
   const { t } = usePrefs()
 
   useEffect(() => {
@@ -118,7 +179,11 @@ export default function RuleFormDialog({
     }))
     setRenames(renameEntries.length ? renameEntries : [])
     setPreconditions([...(base.preconditions || [])])
-    setActionIds((base.actions || []).map((a) => a.id!).filter(Boolean))
+    setOwnedActions(
+      (base.actions || []).map((a, i) => toDraft(cloneAction(a), `${Date.now()}-${i}`)),
+    )
+    setCopyFromId('')
+    setActionError('')
   }, [open, initial, availableSources])
 
   const variableOptions = useMemo(() => {
@@ -154,6 +219,22 @@ export default function RuleFormDialog({
     })
   }
 
+  const updateDraft = (key: string, patch: Partial<OwnedActionDraft>) => {
+    setOwnedActions((rows) => rows.map((r) => (r._key === key ? { ...r, ...patch } : r)))
+  }
+
+  const addBlankAction = () => {
+    setOwnedActions((rows) => [...rows, toDraft(emptyOwnedAction(), `${Date.now()}-new`)])
+  }
+
+  const copyFromCatalog = () => {
+    if (copyFromId === '') return
+    const src = availableActions.find((a) => a.id === copyFromId)
+    if (!src) return
+    setOwnedActions((rows) => [...rows, toDraft(cloneAction(src), `${Date.now()}-copy`)])
+    setCopyFromId('')
+  }
+
   const handleSave = async () => {
     const names = [
       ...new Set(selectedSources.map((s) => s.name).filter((n): n is string => Boolean(n))),
@@ -166,7 +247,29 @@ export default function RuleFormDialog({
       if (from && to) renamesMap[from] = to
     }
 
-    const actions = availableActions.filter((a) => a.id != null && actionIds.includes(a.id))
+    const actions: Action[] = []
+    for (const draft of ownedActions) {
+      let input: Record<string, unknown> | null
+      if (isScriptAction(draft.type)) {
+        input = { script: draft.script }
+      } else {
+        try {
+          input = JSON.parse(draft.inputJson)
+        } catch {
+          setActionError(t('actions.invalidJson'))
+          return
+        }
+      }
+      actions.push({
+        id: null,
+        name: draft.name || null,
+        type: draft.type,
+        result: draft.result || '',
+        input,
+      })
+    }
+    setActionError('')
+
     const rule: Rule = {
       ...form,
       source: { variables, names, renames: renamesMap },
@@ -280,10 +383,7 @@ export default function RuleFormDialog({
                 size="small"
                 startIcon={<AddIcon />}
                 onClick={() =>
-                  setRenames((rows) => [
-                    ...rows,
-                    { from: renameFromOptions[0] || '', to: '' },
-                  ])
+                  setRenames((rows) => [...rows, { from: renameFromOptions[0] || '', to: '' }])
                 }
                 disabled={renameFromOptions.length === 0}
               >
@@ -333,24 +433,6 @@ export default function RuleFormDialog({
                     }
                     placeholder="response"
                     sx={{ flex: 1 }}
-                    InputProps={{
-                      startAdornment: (
-                        <Typography component="span" color="text.secondary" sx={{ mr: 0.5 }}>
-                          {'{'}
-                        </Typography>
-                      ),
-                      endAdornment: (
-                        <Typography component="span" color="text.secondary" sx={{ ml: 0.5 }}>
-                          {'}'}
-                        </Typography>
-                      ),
-                    }}
-                  />
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={`{${row.from || '…'}} → {${row.to || '…'}}`}
-                    sx={{ fontFamily: 'monospace' }}
                   />
                   <IconButton
                     color="error"
@@ -394,11 +476,144 @@ export default function RuleFormDialog({
             )}
           />
 
-          <ActionMultiSelect
-            actions={availableActions}
-            selectedIds={actionIds}
-            onChange={setActionIds}
-          />
+          <Box>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2">{t('rules.ownedActions')}</Typography>
+              <Button size="small" startIcon={<AddIcon />} onClick={addBlankAction}>
+                {t('rules.addAction')}
+              </Button>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              {t('rules.ownedActionsHint')}
+            </Typography>
+
+            {availableActions.length > 0 && (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 220, flex: 1 }}>
+                  <InputLabel>{t('rules.copyAction')}</InputLabel>
+                  <Select
+                    label={t('rules.copyAction')}
+                    value={copyFromId}
+                    onChange={(e) => setCopyFromId(e.target.value as number | '')}
+                  >
+                    {availableActions.map((a) => (
+                      <MenuItem key={a.id} value={a.id!}>
+                        {a.name || `#${a.id}`} ({a.type})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="outlined"
+                  startIcon={<ContentCopyIcon />}
+                  disabled={copyFromId === ''}
+                  onClick={copyFromCatalog}
+                >
+                  {t('rules.copyActionBtn')}
+                </Button>
+              </Stack>
+            )}
+
+            <Stack spacing={2}>
+              {ownedActions.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('rules.noOwnedActions')}
+                </Typography>
+              )}
+              {ownedActions.map((draft, index) => {
+                const scriptMode = isScriptAction(draft.type)
+                return (
+                  <Paper key={draft._key} variant="outlined" sx={{ p: 2 }}>
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="subtitle2">
+                          {t('rules.actionN', { n: index + 1 })}
+                        </Typography>
+                        <IconButton
+                          color="error"
+                          size="small"
+                          onClick={() =>
+                            setOwnedActions((rows) => rows.filter((r) => r._key !== draft._key))
+                          }
+                        >
+                          <DeleteOutlineIcon />
+                        </IconButton>
+                      </Stack>
+                      <TextField
+                        label={t('common.name')}
+                        size="small"
+                        value={draft.name || ''}
+                        onChange={(e) => updateDraft(draft._key, { name: e.target.value })}
+                        fullWidth
+                      />
+                      <FormControl fullWidth size="small">
+                        <InputLabel>{t('common.type')}</InputLabel>
+                        <Select
+                          label={t('common.type')}
+                          value={draft.type}
+                          onChange={(e) => {
+                            const type = e.target.value as ActionType
+                            const input = defaultInput(type)
+                            updateDraft(draft._key, {
+                              type,
+                              input,
+                              inputJson: JSON.stringify(input, null, 2),
+                              script:
+                                typeof input.script === 'string' ? input.script : DEFAULT_SCRIPT,
+                            })
+                          }}
+                        >
+                          <MenuItem value="suggest">suggest</MenuItem>
+                          <MenuItem value="http_action">http_action</MenuItem>
+                          <MenuItem value="set_variable">set_variable</MenuItem>
+                          <MenuItem value="ssh">ssh</MenuItem>
+                          <MenuItem value="python_script">python_script</MenuItem>
+                          <MenuItem value="custom">custom</MenuItem>
+                        </Select>
+                      </FormControl>
+                      {scriptMode ? (
+                        <CodeEditor
+                          label={t('actions.script')}
+                          value={draft.script}
+                          onChange={(script) => updateDraft(draft._key, { script })}
+                          language="python"
+                          height={200}
+                          path={`inmemory://rule-action-script-${draft._key}.py`}
+                          helperText={t('actions.scriptHint')}
+                        />
+                      ) : (
+                        <CodeEditor
+                          label={t('actions.inputJson')}
+                          value={draft.inputJson}
+                          onChange={(inputJson) => updateDraft(draft._key, { inputJson })}
+                          language="json"
+                          height={140}
+                          path={`inmemory://rule-action-input-${draft._key}.json`}
+                          helperText={t('actions.inputHint')}
+                        />
+                      )}
+                      <CodeEditor
+                        label={scriptMode ? t('actions.resultOptional') : t('actions.result')}
+                        value={draft.result || ''}
+                        onChange={(result) => updateDraft(draft._key, { result })}
+                        language="python"
+                        height={90}
+                        path={`inmemory://rule-action-result-${draft._key}.py`}
+                        helperText={
+                          scriptMode ? t('actions.resultOptionalHint') : t('actions.resultHint')
+                        }
+                      />
+                    </Stack>
+                  </Paper>
+                )
+              })}
+            </Stack>
+            {actionError && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {actionError}
+              </FormHelperText>
+            )}
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
