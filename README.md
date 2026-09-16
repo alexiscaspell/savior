@@ -153,11 +153,11 @@ Campos importantes:
 
 | Campo | Uso |
 |-------|-----|
-| `type` | `http_request`, `http_log`, `ssh_log`, `custom` |
+| `type` | `http_request`, `http_log`, `ssh_log`, `python_script`, `custom` |
 | `name` | Identificador opcional (útil para referenciar desde rules) |
 | `variable` | Alias en expressions, ej. `$response` |
-| `input` | Parámetros según el tipo (url, method, creds, …) |
-| `output` | Expresión opcional para transformar la respuesta |
+| `input` | Parámetros según el tipo (url, method, creds, script, …) |
+| `output` | Expresión opcional para transformar la respuesta / `result` |
 
 Ejemplo HTTP:
 
@@ -170,7 +170,20 @@ Ejemplo HTTP:
     url: https://httpbin.org/status/200
 ```
 
-En la expression de una rule, `$response_alive` se reemplaza por los datos de ese source.
+Ejemplo `python_script` (editor Python en la UI; `custom` es alias):
+
+```yaml
+- type: python_script
+  name: node_status
+  variable: $node
+  input:
+    script: |
+      r = requests.get(f'http://127.0.0.1:8090/status/{svc.vars.name}')
+      result = r.json()
+  output: "result.get('ok')"
+```
+
+En la expression de una rule, `$response_alive` / `$node` se reemplazan por los datos de ese source.
 
 ### Rule
 
