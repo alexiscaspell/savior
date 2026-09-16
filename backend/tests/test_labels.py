@@ -155,6 +155,35 @@ def test_update_label_template(client):
     assert cleared.json()["service_id"] is None
 
 
+def test_upsert_label_keeps_row_on_rebind(client):
+    """Re-binding a template must update service_id without deleting the catalog row."""
+    tpl = client.post(
+        "/api/v1/services",
+        json={"name": "node-tpl", "vars": {"__template": True}, "labels": [], "sources": [], "rules": []},
+    ).json()
+    other = client.post(
+        "/api/v1/services",
+        json={"name": "other-tpl", "vars": {"__template": True}, "labels": [], "sources": [], "rules": []},
+    ).json()
+
+    assert client.post("/api/v1/labels", json={"label": "node", "service": None}).status_code == 200
+    assert any(l["label"] == "node" for l in client.get("/api/v1/labels").json())
+
+    # POST upsert (same path the create form uses for an existing name)
+    rebound = client.post("/api/v1/labels", json={"label": "node", "service": {"id": tpl}})
+    assert rebound.status_code == 200
+    assert rebound.json()["service_id"] == tpl
+    assert any(l["label"] == "node" and l["service"]["id"] == tpl for l in client.get("/api/v1/labels").json())
+
+    # PUT rebind to another template
+    rebound2 = client.put("/api/v1/labels", json={"label": "node", "service": {"id": other}})
+    assert rebound2.status_code == 200
+    assert rebound2.json()["service_id"] == other
+    labels = client.get("/api/v1/labels").json()
+    assert sum(1 for l in labels if l["label"] == "node") == 1
+    assert next(l for l in labels if l["label"] == "node")["service"]["id"] == other
+
+
 def test_pray_uses_inherited_rule(client, labels_yaml, mock_http):
     savior.mock(labels_yaml)
     consumer = next(s for s in client.get("/api/v1/services").json() if s["name"] == "api_consumidor")
@@ -169,3 +198,57 @@ def test_pray_uses_inherited_rule(client, labels_yaml, mock_http):
     assert any(r["name"] == "health_not_ok" for r in body["rules"])
     consequences = body["rules"][0]["consequences"]
     assert consequences[0]["action"] == "suggest-health"
+
+
+def test_template_wearing_own_label_does_not_500(client):
+    """Binding a template that itself has the catalog label must not recurse."""
+    tpl_id = client.post(
+        "/api/v1/services",
+        json={
+            "name": "node-template",
+            "vars": {"__template": True, "role": "tpl"},
+            "labels": ["node"],
+            "sources": [],
+            "rules": [
+                {
+                    "name": "from-tpl",
+                    "expression": "True",
+                    "source": {"variables": [], "names": [], "renames": {}},
+                    "actions": [
+                        {"name": "hi", "type": "suggest", "result": "from template", "input": {}}
+                    ],
+                    "preconditions": [],
+                }
+            ],
+        },
+    ).json()
+
+    assert (
+        client.post("/api/v1/labels", json={"label": "node", "service": {"id": tpl_id}}).status_code
+        == 200
+    )
+
+    labels = client.get("/api/v1/labels").json()
+    row = next(l for l in labels if l["label"] == "node")
+    assert row["service"]["id"] == tpl_id
+
+    tpl = client.get(f"/api/v1/services/{tpl_id}").json()
+    assert "node" not in (tpl.get("labels") or [])
+
+    consumer_id = client.post(
+        "/api/v1/services",
+        json={
+            "name": "node-dell",
+            "vars": {"name": "dell"},
+            "labels": ["node"],
+            "sources": [],
+            "rules": [],
+        },
+    ).json()
+
+    listed = client.get("/api/v1/services")
+    assert listed.status_code == 200, listed.text
+    child = client.get(f"/api/v1/services/{consumer_id}").json()
+    assert child["vars"]["role"] == "tpl"
+    assert child["vars"]["name"] == "dell"
+    assert any(r["name"] == "from-tpl" for r in child["rules"])

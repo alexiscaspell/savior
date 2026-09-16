@@ -63,35 +63,62 @@ def update(service:Service, infer_ids:bool=False)->int:
 
     return service.id
 
-def _get_complete_service(incomplete_svc:Service)->Service:
+def _get_service_parts(incomplete_svc: Service) -> Service:
+    """Attach sources/rules only — never resolve label templates (avoids cycles)."""
     if incomplete_svc is None:
         return None
 
-    source_service_entities=sql.select_by_filter({"service_id":int(incomplete_svc.id)},SourceServiceEntity)
-    sources_ids = list(map(lambda ss:ss.source_id,source_service_entities))
-    sources = source_repo.get_by_ids(sources_ids)
-    incomplete_svc.sources = sources
+    source_service_entities = sql.select_by_filter(
+        {"service_id": int(incomplete_svc.id)}, SourceServiceEntity
+    )
+    sources_ids = list(map(lambda ss: ss.source_id, source_service_entities))
+    incomplete_svc.sources = source_repo.get_by_ids(sources_ids)
 
-    rules_ids = list(map(lambda rs:rs.rule_id,sql.select_by_filter({"service_id":incomplete_svc.id},RuleServiceEntity)))
-    rules = rule_repo.get_by_ids(rules_ids)
-    incomplete_svc.rules = rules
+    rules_ids = list(
+        map(
+            lambda rs: rs.rule_id,
+            sql.select_by_filter({"service_id": incomplete_svc.id}, RuleServiceEntity),
+        )
+    )
+    incomplete_svc.rules = rule_repo.get_by_ids(rules_ids)
+    return incomplete_svc
 
-    templates = get_all_labels(incomplete_svc.labels)
 
-    for template in templates:
+def _get_complete_service(incomplete_svc: Service, _seen: set = None) -> Service:
+    if incomplete_svc is None:
+        return None
+
+    incomplete_svc = _get_service_parts(incomplete_svc)
+
+    seen = set(_seen or [])
+    if incomplete_svc.id is not None:
+        if incomplete_svc.id in seen:
+            # Cycle: a template (or chain) points back at a service already being resolved.
+            return incomplete_svc
+        seen.add(incomplete_svc.id)
+
+    for template in get_all_labels(incomplete_svc.labels):
         incomplete_svc = template.apply_to_service(incomplete_svc)
 
     return incomplete_svc
 
 
-def get_by_id(id:str)-> Service:
-    service = sql.select_by_id(id,ServiceEntity)
-    return _get_complete_service(service)
+def get_by_id(id: str, apply_labels: bool = True) -> Service:
+    service = sql.select_by_id(id, ServiceEntity)
+    if service is None:
+        return None
+    if apply_labels:
+        return _get_complete_service(service)
+    return _get_service_parts(service)
 
-def get_by_name(name:str)-> Service:
-    service = sql.select_one_by_filter({"name":name},ServiceEntity)
 
-    return _get_complete_service(service) if service else None
+def get_by_name(name: str, apply_labels: bool = True) -> Service:
+    service = sql.select_one_by_filter({"name": name}, ServiceEntity)
+    if service is None:
+        return None
+    if apply_labels:
+        return _get_complete_service(service)
+    return _get_service_parts(service)
 
 def get_by_name_like(name:str)-> Service:
     service = sql.select_one_by_filter({"name":f"%{name}%"},ServiceEntity)
@@ -103,13 +130,38 @@ def get_all_by_name_like(name:str)-> List[Service]:
 
     return [_get_complete_service(service) for service in services]
 
-def add_label(label:ServiceLabel):
+def add_label(label: ServiceLabel):
+    """Upsert catalog label in a single transaction (never delete-then-insert).
+
+    If the template service wears this same label, strip it so consumers don't
+    recurse when resolving inheritance.
+    """
     from app.repositories.entity.label_entity import LabelServiceEntity
-    existing = sql.select_by_filter({"label": label.label}, LabelServiceEntity)
-    if existing:
-        # Upsert template binding for an existing catalog label
-        sql.delete_by_filter({"label": label.label}, LabelServiceEntity)
-    sql.insert(label, LabelServiceEntity, return_id=False)
+
+    service_id = label.service.id if label.service is not None else None
+    session = sql.create_session()
+    try:
+        existing = (
+            session.query(LabelServiceEntity)
+            .filter(LabelServiceEntity.label == label.label)
+            .one_or_none()
+        )
+        if existing is not None:
+            existing.service_id = service_id
+        else:
+            session.add(LabelServiceEntity(label=label.label, service_id=service_id))
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+    if service_id is not None:
+        tpl = sql.select_by_id(service_id, ServiceEntity)
+        if tpl is not None and label.label in (tpl.labels or []):
+            tpl.labels = [l for l in (tpl.labels or []) if l != label.label]
+            sql.update(tpl, ServiceEntity)
 
 def delete_label(service_id:int=None, label:str=None):
     filt = {}
@@ -125,15 +177,15 @@ def delete_label(service_id:int=None, label:str=None):
 def get_all_label_associations()->List[ServiceLabel]:
     return sql.select_all(LabelServiceEntity)
 
-def get_labels(label_name:str)->List[ServiceLabel]:
-    incomplete_labels = sql.select_by_filter({"label":label_name},LabelServiceEntity)
+def get_labels(label_name: str) -> List[ServiceLabel]:
+    incomplete_labels = sql.select_by_filter({"label": label_name}, LabelServiceEntity)
 
-    if len(incomplete_labels)==0:
+    if len(incomplete_labels) == 0:
         # Backward compat: treat a service named like the label as template
-        service = get_by_name(label_name)
+        service = get_by_name(label_name, apply_labels=False)
         if service is None:
             return []
-        return [ServiceLabel(service=service,label=label_name)]
+        return [ServiceLabel(service=service, label=label_name)]
 
     resolved = []
     for incomplete_label in incomplete_labels:
@@ -142,9 +194,10 @@ def get_labels(label_name:str)->List[ServiceLabel]:
             # Tag-only label: no inheritance
             resolved.append(ServiceLabel(label=incomplete_label.label, service=None))
             continue
-        service = get_by_id(sid)
+        # Templates are loaded shallow: applying their labels would recurse when the
+        # template itself wears the same catalog label (e.g. node-template + label node).
+        service = get_by_id(sid, apply_labels=False)
         if service is None:
-            # Template missing: keep as tag-only
             resolved.append(ServiceLabel(label=incomplete_label.label, service=None))
             continue
         incomplete_label.service = service
