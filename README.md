@@ -258,7 +258,20 @@ Tipos de action:
 | `http_action` | Hace un HTTP request (`input.url`, `method`, …) y evalúa `result` |
 | `set_variable` | Escribe una variable en `service.vars` |
 | `ssh` | Ejecuta un comando remoto por SSH |
-| `custom` | Extensión custom |
+| `custom` | Alias de `python_script` |
+| `python_script` | Ejecuta un snippet Python (`input.script`); asigná `result = ...` |
+
+Ejemplo `python_script`:
+
+```yaml
+- name: fix-flannel-node
+  type: python_script
+  input:
+    script: |
+      r = requests.post(f'http://127.0.0.1:8090/fix/{svc.vars.name}')
+      result = {'node': svc.vars.name, 'status': r.status_code}
+  result: "f\"fixed {result['node']} -> {result['status']}\""
+```
 
 Ejemplo `suggest`:
 

@@ -2,8 +2,9 @@ from app.model.app_model import AppModel,Case,convert_to_case
 from enum import Enum
 from app.model.exception import InvalidActionException
 import sys
-from app.utils.logger_util import get_logger
+import json
 import requests as req
+from app.utils.logger_util import get_logger
 from app.model.context import Context
 from app.utils.ssh_util import SshCredentials as SshCreds,execute_command
 
@@ -19,6 +20,7 @@ class ActionType(Enum):
     set_variable = "set_variable"
     ssh = "ssh"
     custom = "custom"
+    python_script = "python_script"
 
 def class_from_str(classname):
     return getattr(sys.modules[__name__], classname)
@@ -96,7 +98,6 @@ class HttpAction(Action):
             body = context.current_rule.get_curated_string(body)
             body = context.eval(body, args)
         elif isinstance(body, dict):
-            # Allow templated string values inside JSON body
             curated = {}
             for k, v in body.items():
                 if isinstance(v, str):
@@ -111,7 +112,6 @@ class HttpAction(Action):
             response = getattr(req, self.method)(url, headers=self.headers)
 
         result = self.result.replace("$response", "response")
-        # Include service context so result templates can mention svc.vars.*
         eval_args = dict(args)
         eval_args["response"] = response
         return context.eval(result, eval_args)
@@ -133,3 +133,58 @@ class SshAction(Action):
         bash_command = self.context.eval(bash_command,self.context.context_vars())
 
         return execute_command(bash_command,self.ip,creds,self.port)
+
+
+class PythonScriptAction(Action):
+    """Run a Python snippet with service context; set `result` inside the script.
+
+    Available in the script namespace:
+      - svc, source0..N (same as rule expressions)
+      - requests, json, os
+      - result (assign this to return a consequence value)
+    Optional action.result is evaluated after the script as a formatter.
+    """
+
+    script: str = ""
+
+    def apply(self):
+        context = self.context
+        args = context.context_vars()
+
+        script = self.script or ""
+        if not script and isinstance(self.input, dict):
+            script = self.input.get("script") or ""
+        if not script:
+            raise InvalidActionException()
+
+        # Allow $response → source0.data style replacements inside the script text
+        script = context.current_rule.get_curated_string(script)
+
+        ns = dict(args)
+        ns["result"] = None
+        ns["requests"] = req
+        ns["json"] = json
+        ns["os"] = __import__("os")
+        ns["context"] = context
+
+        try:
+            exec(script, ns, ns)  # noqa: S102 — intentional user-defined remediation scripts
+        except Exception as e:
+            logger.exception("python_script action failed")
+            raise InvalidActionException() from e
+
+        script_result = ns.get("result")
+
+        if self.result:
+            eval_args = dict(args)
+            eval_args.update({k: v for k, v in ns.items() if not k.startswith("_")})
+            eval_args["result"] = script_result
+            formatted = context.current_rule.get_curated_string(self.result)
+            return context.eval(formatted, eval_args)
+
+        return script_result
+
+
+class CustomAction(PythonScriptAction):
+    """Legacy alias of python_script (`type: custom`)."""
+    pass

@@ -37,6 +37,12 @@ function defaultInput(type: ActionType): Record<string, unknown> | null {
       return { command: '', ip: '', port: 22, creds: { user: '', password: '', key_file: '' } }
     case 'suggest':
       return {}
+    case 'python_script':
+    case 'custom':
+      return {
+        script:
+          "# Assign `result` to return the consequence.\n# Available: svc, requests, json, os, source0..\nresult = None\n",
+      }
     default:
       return {}
   }
@@ -90,6 +96,19 @@ function inputSchema(type: ActionType): object {
         required: ['command', 'ip'],
         additionalProperties: true,
       }
+    case 'python_script':
+    case 'custom':
+      return {
+        type: 'object',
+        properties: {
+          script: {
+            type: 'string',
+            description: 'Python script; assign result = ... to return a value',
+          },
+        },
+        required: ['script'],
+        additionalProperties: true,
+      }
     case 'suggest':
       return { type: 'object', additionalProperties: true }
     default:
@@ -138,6 +157,14 @@ export default function ActionFormDialog({
 
   const schema = useMemo(() => inputSchema(form.type), [form.type])
 
+  const scriptValue = useMemo(() => {
+    try {
+      return String((JSON.parse(inputJson || '{}') as { script?: string }).script || '')
+    } catch {
+      return ''
+    }
+  }, [inputJson])
+
   const handleSave = async () => {
     let input: Record<string, unknown> | null
     try {
@@ -178,9 +205,32 @@ export default function ActionFormDialog({
               <MenuItem value="http_action">http_action</MenuItem>
               <MenuItem value="set_variable">set_variable</MenuItem>
               <MenuItem value="ssh">ssh</MenuItem>
-              <MenuItem value="custom">custom</MenuItem>
+              <MenuItem value="python_script">python_script</MenuItem>
+              <MenuItem value="custom">custom (alias)</MenuItem>
             </Select>
           </FormControl>
+          {(form.type === 'python_script' || form.type === 'custom') && (
+            <CodeEditor
+              label={t('actions.script')}
+              value={scriptValue}
+              onChange={(script) => {
+                let parsed: Record<string, unknown> = {}
+                try {
+                  parsed = JSON.parse(inputJson || '{}')
+                } catch {
+                  parsed = {}
+                }
+                const next = { ...parsed, script }
+                setInputJson(JSON.stringify(next, null, 2))
+                setForm((f) => ({ ...f, input: next }))
+              }}
+              language="python"
+              height={260}
+              path={`inmemory://action-script-${initial?.id ?? 'new'}.py`}
+              completions={['svc', 'result', 'requests', 'json', 'os', 'source0']}
+              helperText={t('actions.scriptHint')}
+            />
+          )}
           <CodeEditor
             label={t('actions.result')}
             value={form.result || ''}
@@ -188,9 +238,10 @@ export default function ActionFormDialog({
             language="python"
             height={140}
             path={`inmemory://action-result-${initial?.id ?? 'new'}.py`}
-            completions={['$response', 'svc', 'True', 'False']}
+            completions={['$response', 'svc', 'result', 'True', 'False']}
             helperText={t('actions.resultHint')}
           />
+          {form.type !== 'python_script' && form.type !== 'custom' && (
           <CodeEditor
             label={t('actions.inputJson')}
             value={inputJson}
@@ -202,6 +253,20 @@ export default function ActionFormDialog({
             error={Boolean(jsonError)}
             helperText={jsonError || t('actions.inputHint')}
           />
+          )}
+          {(form.type === 'python_script' || form.type === 'custom') && (
+            <CodeEditor
+              label={t('actions.inputJson')}
+              value={inputJson}
+              onChange={setInputJson}
+              language="json"
+              height={120}
+              path={`inmemory://action-input-${form.type}.json`}
+              schema={schema}
+              error={Boolean(jsonError)}
+              helperText={jsonError || t('actions.scriptInputHint')}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

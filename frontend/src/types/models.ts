@@ -1,5 +1,5 @@
 export type SourceType = 'http_request' | 'http_log' | 'ssh_log' | 'custom'
-export type ActionType = 'suggest' | 'http_action' | 'set_variable' | 'ssh' | 'custom'
+export type ActionType = 'suggest' | 'http_action' | 'set_variable' | 'ssh' | 'custom' | 'python_script'
 
 export interface Source {
   id?: number | null
