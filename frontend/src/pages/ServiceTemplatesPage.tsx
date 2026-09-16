@@ -35,6 +35,7 @@ export default function ServiceTemplatesPage() {
   const [services, setServices] = useState<Service[]>([])
   const [associations, setAssociations] = useState<ServiceLabel[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogReadOnly, setDialogReadOnly] = useState(false)
   const [editing, setEditing] = useState<Service | null>(null)
   const [toDelete, setToDelete] = useState<Service | null>(null)
   const { showError, showSuccess } = useToast()
@@ -113,6 +114,7 @@ export default function ServiceTemplatesPage() {
         subtitle={t('templates.subtitle')}
         onCreate={() => {
           setEditing(null)
+          setDialogReadOnly(false)
           setDialogOpen(true)
         }}
         createLabel={t('templates.new')}
@@ -162,6 +164,7 @@ export default function ServiceTemplatesPage() {
                       <IconButton
                         onClick={() => {
                           setEditing(s)
+                          setDialogReadOnly(true)
                           setDialogOpen(true)
                         }}
                       >
@@ -197,6 +200,7 @@ export default function ServiceTemplatesPage() {
         open={dialogOpen}
         initial={editing}
         mode="template"
+        readOnly={dialogReadOnly}
         onClose={() => setDialogOpen(false)}
         onSave={save}
       />

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -13,6 +14,7 @@ import {
   Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
@@ -20,6 +22,7 @@ import LinkOffIcon from '@mui/icons-material/LinkOff'
 import { servicesApi } from '../api/services'
 import { sourcesApi } from '../api/sources'
 import { rulesApi } from '../api/rules'
+import { labelsApi } from '../api/labels'
 import type { Rule, Service, Source } from '../types/models'
 import { useToast } from '../components/PageHeader'
 import { usePrefs } from '../i18n/PrefsContext'
@@ -36,17 +39,27 @@ export default function ServiceDetailPage() {
   const [allRules, setAllRules] = useState<Rule[]>([])
   const [linkSourceId, setLinkSourceId] = useState<number | ''>('')
   const [linkRuleId, setLinkRuleId] = useState<number | ''>('')
+  const [varsJson, setVarsJson] = useState('{}')
+  const [labels, setLabels] = useState<string[]>([])
+  const [labelOptions, setLabelOptions] = useState<string[]>([])
+  const [varsError, setVarsError] = useState('')
+  const [savingMeta, setSavingMeta] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      const [svc, sources, rules] = await Promise.all([
+      const [svc, sources, rules, labelItems] = await Promise.all([
         servicesApi.get(serviceId),
         sourcesApi.list(),
         rulesApi.list(),
+        labelsApi.list(),
       ])
       setService(svc)
+      setVarsJson(JSON.stringify(svc.vars || {}, null, 2))
+      setLabels([...(svc.labels || [])])
+      setVarsError('')
       setAllSources(sources)
       setAllRules(rules)
+      setLabelOptions([...new Set((labelItems || []).map((l) => l.label).filter(Boolean))])
     } catch (e) {
       showError((e as Error).message)
     }
@@ -55,6 +68,32 @@ export default function ServiceDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const saveMeta = async () => {
+    if (!service) return
+    let vars: Record<string, unknown>
+    try {
+      vars = JSON.parse(varsJson)
+    } catch {
+      setVarsError(t('services.invalidVars'))
+      return
+    }
+    setVarsError('')
+    setSavingMeta(true)
+    try {
+      await servicesApi.update(serviceId, {
+        ...service,
+        vars,
+        labels: labels.map((s) => s.trim()).filter(Boolean),
+      })
+      showSuccess(t('services.updated'))
+      await load()
+    } catch (e) {
+      showError((e as Error).message)
+    } finally {
+      setSavingMeta(false)
+    }
+  }
 
   if (!service) {
     return <Typography>{t('common.loading')}</Typography>
@@ -78,26 +117,52 @@ export default function ServiceDetailPage() {
       </Stack>
 
       <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          {t('detail.vars')}
-        </Typography>
-        <Box
-          component="pre"
-          sx={{
-            m: 0,
-            p: 1.5,
-            bgcolor: 'action.hover',
-            borderRadius: 2,
-            overflow: 'auto',
-            fontSize: 13,
-          }}
-        >
-          {JSON.stringify(service.vars || {}, null, 2)}
-        </Box>
-        <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
-          {(service.labels || []).map((l) => (
-            <Chip key={l} label={l} color="primary" variant="outlined" />
-          ))}
+        <Stack spacing={2}>
+          <TextField
+            label={t('services.varsJson')}
+            value={varsJson}
+            onChange={(e) => setVarsJson(e.target.value)}
+            multiline
+            minRows={4}
+            error={Boolean(varsError)}
+            helperText={varsError || undefined}
+            fullWidth
+            InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
+          />
+          <Autocomplete
+            multiple
+            freeSolo
+            options={labelOptions}
+            value={labels}
+            onChange={(_, value) => setLabels(value)}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index })
+                return (
+                  <Chip
+                    key={key}
+                    label={option}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                    {...tagProps}
+                  />
+                )
+              })
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={t('services.labelsField')}
+                helperText={t('services.labelsHint')}
+              />
+            )}
+          />
+          <Box>
+            <Button variant="contained" onClick={saveMeta} disabled={savingMeta}>
+              {t('common.save')}
+            </Button>
+          </Box>
         </Stack>
       </Paper>
 

@@ -38,12 +38,14 @@ export default function ServiceFormDialog({
   onClose,
   onSave,
   mode = 'service',
+  readOnly = false,
 }: {
   open: boolean
   initial?: Service | null
   onClose: () => void
   onSave: (service: Service) => Promise<void>
   mode?: 'service' | 'template'
+  readOnly?: boolean
 }) {
   const { t } = usePrefs()
   const asTemplate = mode === 'template'
@@ -73,6 +75,7 @@ export default function ServiceFormDialog({
   }, [open, initial, asTemplate])
 
   const handleSave = async () => {
+    if (readOnly) return
     let vars: Record<string, unknown>
     try {
       vars = JSON.parse(varsJson)
@@ -97,12 +100,16 @@ export default function ServiceFormDialog({
   }
 
   const title = asTemplate
-    ? initial?.id
+    ? readOnly
       ? t('templates.view')
-      : t('templates.create')
-    : initial?.id
+      : initial?.id
+        ? t('templates.edit')
+        : t('templates.create')
+    : readOnly
       ? t('services.view')
-      : t('services.create')
+      : initial?.id
+        ? t('services.edit')
+        : t('services.create')
 
   return (
     <Dialog open={open} onClose={onClose} TransitionComponent={Transition} fullWidth maxWidth="sm">
@@ -115,6 +122,7 @@ export default function ServiceFormDialog({
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
+            InputProps={{ readOnly }}
           />
           <TextField
             label={t('services.varsJson')}
@@ -125,7 +133,7 @@ export default function ServiceFormDialog({
             error={Boolean(error)}
             helperText={error || (asTemplate ? t('templates.varsHint') : undefined)}
             fullWidth
-            InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }}
+            InputProps={{ readOnly, sx: { fontFamily: 'monospace', fontSize: 13 } }}
           />
           {!asTemplate && (
             <Autocomplete
@@ -134,6 +142,8 @@ export default function ServiceFormDialog({
               options={labelOptions}
               value={labels}
               onChange={(_, value) => setLabels(value)}
+              disabled={readOnly}
+              readOnly={readOnly}
               renderTags={(value, getTagProps) =>
                 value.map((option, index) => {
                   const { key, ...tagProps } = getTagProps({ index })
@@ -145,6 +155,7 @@ export default function ServiceFormDialog({
                       variant="outlined"
                       size="small"
                       {...tagProps}
+                      {...(readOnly ? { onDelete: undefined } : {})}
                     />
                   )
                 })
@@ -153,7 +164,7 @@ export default function ServiceFormDialog({
                 <TextField
                   {...params}
                   label={t('services.labelsField')}
-                  helperText={t('services.labelsHint')}
+                  helperText={readOnly ? undefined : t('services.labelsHint')}
                 />
               )}
             />
@@ -161,10 +172,12 @@ export default function ServiceFormDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>{t('common.cancel')}</Button>
-        <Button variant="contained" onClick={handleSave} disabled={saving || !name}>
-          {t('common.save')}
-        </Button>
+        <Button onClick={onClose}>{readOnly ? t('common.close') : t('common.cancel')}</Button>
+        {!readOnly && (
+          <Button variant="contained" onClick={handleSave} disabled={saving || !name}>
+            {t('common.save')}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   )

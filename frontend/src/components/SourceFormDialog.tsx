@@ -17,6 +17,7 @@ import { forwardRef, useEffect, useMemo, useState } from 'react'
 import type { Source, SourceType } from '../types/models'
 import { usePrefs } from '../i18n/PrefsContext'
 import CodeEditor from './CodeEditor'
+import { formatPythonExpression } from '../utils/formatPythonExpression'
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: React.ReactElement },
@@ -27,6 +28,12 @@ const Transition = forwardRef(function Transition(
 
 const DEFAULT_SCRIPT =
   '# Assign `result` to produce source data.\n# Available: svc, requests, json, os, source0..\nresult = None\n'
+
+const DEFAULT_HTTP_OUTPUT = `{
+  'status_code': response.status_code,
+  'body': response.json(),
+}
+`
 
 function isScriptSource(type: SourceType): boolean {
   return type === 'python_script' || type === 'custom'
@@ -119,6 +126,11 @@ function scriptFromInput(input: Record<string, unknown> | null | undefined): str
   return typeof script === 'string' ? script : DEFAULT_SCRIPT
 }
 
+function outputForEditor(output: string | null | undefined): string {
+  if (!output) return ''
+  return formatPythonExpression(output)
+}
+
 export default function SourceFormDialog({
   open,
   initial,
@@ -144,7 +156,7 @@ export default function SourceFormDialog({
       setForm(base)
       setInputJson(JSON.stringify(base.input || {}, null, 2))
       setScript(scriptFromInput(base.input as Record<string, unknown>))
-      setOutputExpr(base.output || '')
+      setOutputExpr(outputForEditor(base.output))
       setJsonError('')
     }
   }, [open, initial])
@@ -160,6 +172,9 @@ export default function SourceFormDialog({
 
   const schema = useMemo(() => inputSchema(form.type), [form.type])
   const scriptMode = isScriptSource(form.type)
+  const outputHeight = scriptMode
+    ? 140
+    : Math.min(420, Math.max(200, outputExpr.split('\n').length * 22 + 48))
 
   const handleSave = async () => {
     let input: Record<string, unknown>
@@ -175,13 +190,14 @@ export default function SourceFormDialog({
         return
       }
     }
+    const formattedOutput = outputExpr.trim() ? formatPythonExpression(outputExpr).trim() : ''
     setSaving(true)
     try {
       await onSave({
         ...form,
         input,
         variable: form.variable || '$response',
-        output: outputExpr.trim() || null,
+        output: formattedOutput || null,
       })
       onClose()
     } finally {
@@ -245,15 +261,40 @@ export default function SourceFormDialog({
               helperText={jsonError || t('sources.inputHint')}
             />
           )}
-          <CodeEditor
-            label={scriptMode ? t('sources.outputOptional') : t('sources.output')}
-            value={outputExpr}
-            onChange={setOutputExpr}
-            language="python"
-            height={120}
-            path="inmemory://source-output.py"
-            helperText={scriptMode ? t('sources.outputOptionalHint') : t('sources.outputHint')}
-          />
+          <Stack spacing={0.5}>
+            <CodeEditor
+              label={scriptMode ? t('sources.outputOptional') : t('sources.output')}
+              value={outputExpr}
+              onChange={setOutputExpr}
+              language="python"
+              height={outputHeight}
+              path={`inmemory://source-output-${initial?.id ?? 'new'}.py`}
+              completions={[
+                'response',
+                'response.status_code',
+                'response.json()',
+                'response.text',
+                'svc',
+                'result',
+                'True',
+                'False',
+                'None',
+              ]}
+              helperText={scriptMode ? t('sources.outputOptionalHint') : t('sources.outputHint')}
+            />
+            {!scriptMode && (
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button
+                  size="small"
+                  onClick={() =>
+                    setOutputExpr(formatPythonExpression(outputExpr || DEFAULT_HTTP_OUTPUT))
+                  }
+                >
+                  {t('sources.formatOutput')}
+                </Button>
+              </Stack>
+            )}
+          </Stack>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
